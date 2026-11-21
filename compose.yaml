@@ -1,6 +1,6 @@
 services:
   planner:
-    build: .
+    image: ghcr.io/averexs/c-planner:latest
     ports:
       - 8080:8080
     volumes:
