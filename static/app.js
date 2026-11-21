@@ -36,7 +36,7 @@ let dirty = false, revision = 0;
 const tips = {
   select: 'Drag objects to move them. Drag the camera handle to aim.',
   pan: 'Drag to pan the drawing.',
-  wall: 'Drag from one end of the wall to the other.',
+  wall: 'Drag to trace a wall. Nearby joins and nearly straight strokes snap automatically.',
   room: 'Drag between opposite corners of the room.',
   door: 'Drag from the hinge toward the closed end along the wall.',
   doorway: 'Drag between the two sides of the doorway along the wall.',
@@ -381,6 +381,79 @@ function snap(point) {
   return { x: Math.round(point.x / 20) * 20, y: Math.round(point.y / 20) * 20 };
 }
 
+function wallEdges() {
+  return plan.objects.flatMap(({ type, x, y, x2, y2 }) => {
+    const start = { x, y };
+    const end = { x: x2, y: y2 };
+    if (type === 'wall') return [[start, end]];
+    if (type !== 'room') return [];
+    const topRight = { x: x2, y };
+    const bottomLeft = { x, y: y2 };
+    return [[start, topRight], [topRight, end], [end, bottomLeft], [bottomLeft, start]];
+  }).filter(([start, end]) => distance(start, end) > 0);
+}
+
+function projectOntoEdge(point, [start, end]) {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const fraction = clamp(((point.x - start.x) * dx + (point.y - start.y) * dy) / (dx * dx + dy * dy), 0, 1);
+  return { x: start.x + fraction * dx, y: start.y + fraction * dy };
+}
+
+function nearest(point, candidates) {
+  let bestDistance = 12 / view.zoom;
+  let match;
+  for (const candidate of candidates) {
+    const gap = distance(point, candidate.point);
+    if (gap < bestDistance) {
+      match = candidate;
+      bestDistance = gap;
+    }
+  }
+  return match;
+}
+
+function wallStart(point, edges) {
+  const endpoint = nearest(point, edges.flat().map(point => ({ point })));
+  const wall = nearest(point, edges.map(edge => ({ edge, point: projectOntoEdge(point, edge) })));
+  return endpoint?.point ?? wall?.point ?? snap(point);
+}
+
+function drawEnd(action, point) {
+  if (action.freehand) return point;
+  if (action.edge) return projectOntoEdge(point, action.edge);
+  if (action.type !== 'wall') return snap(point);
+  const { start, edges } = action;
+  const endpoints = edges.flat().filter(endpoint => distance(start, endpoint) > .001);
+  const endpoint = nearest(point, endpoints.map(point => ({ point })));
+  if (endpoint) return endpoint.point;
+
+  const dx = Math.abs(point.x - start.x);
+  const dy = Math.abs(point.y - start.y);
+  const lockedAxis = dy < dx * .2 ? 'y' : dx < dy * .2 ? 'x' : null;
+  if (!lockedAxis) return wallStart(point, edges);
+
+  // Intersect the straight stroke with nearby edges so a T-junction stays straight.
+  const travelAxis = lockedAxis === 'x' ? 'y' : 'x';
+  const intersections = [];
+  for (const [a, b] of edges) {
+    const delta = b[lockedAxis] - a[lockedAxis];
+    if (!delta) continue;
+    const fraction = (start[lockedAxis] - a[lockedAxis]) / delta;
+    if (fraction < 0 || fraction > 1) continue;
+    const intersection = {
+      [lockedAxis]: start[lockedAxis],
+      [travelAxis]: a[travelAxis] + fraction * (b[travelAxis] - a[travelAxis]),
+    };
+    if (distance(start, intersection) > .001) intersections.push({ point: intersection });
+  }
+  const join = nearest(point, intersections) ??
+    nearest(point, edges.map(edge => ({ point: projectOntoEdge(point, edge) }))
+      .filter(({ point: candidate }) => distance(start, candidate) > .001 &&
+        Math.abs(candidate[lockedAxis] - start[lockedAxis]) < .001));
+  return join?.point ?? { ...snap(point), [lockedAxis]: start[lockedAxis] };
+}
+
 function add(type, point, details = {}) {
   const before = clone();
   const count = plan.objects.filter(item => item.type === type).length;
@@ -423,7 +496,12 @@ canvas.addEventListener('pointerdown', event => {
     const name = prompt('Label text');
     if (name?.trim()) add('label', snap(point), { name: name.trim().slice(0, 100) });
   } else {
-    gesture = { mode: 'draw', start: snap(point), type: tool };
+    const opening = isOpening(tool);
+    const freehand = event.shiftKey && (opening || tool === 'wall');
+    const edges = !freehand && (opening || tool === 'wall') ? wallEdges() : [];
+    const anchor = opening && nearest(point, edges.map(edge => ({ edge, point: projectOntoEdge(point, edge) })));
+    const start = freehand ? point : tool === 'wall' ? wallStart(point, edges) : anchor?.point ?? snap(point);
+    gesture = { mode: 'draw', start, type: tool, edges, edge: anchor?.edge, freehand };
   }
   if (gesture) {
     gesture.pointer = event.pointerId;
@@ -443,7 +521,7 @@ canvas.addEventListener('pointermove', event => {
     return;
   }
   if (action.mode === 'draw') {
-    const end = snap(point);
+    const end = drawEnd(action, point);
     action.draft = { ...action.start, x2: end.x, y2: end.y, type: action.type === 'scale' ? 'measure' : action.type };
   } else {
     if (!action.changed && distance(screen, action.screen) < 3) return;
@@ -469,7 +547,7 @@ canvas.addEventListener('pointerup', event => {
   gesture = undefined;
   if (action.changed) return commit(action.before);
   if (action.mode === 'draw') {
-    const end = snap(world(local(event)));
+    const end = drawEnd(action, world(local(event)));
     const pixels = distance(action.start, end);
     if (pixels * view.zoom >= 3) {
       if (action.type === 'scale') {
