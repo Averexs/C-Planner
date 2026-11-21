@@ -24,6 +24,8 @@ The **Dark mode** button in the header switches the editor theme. The browser re
 4. Drag **Camera** from the toolbar onto the plan, or select it and click on the plan. Drag the body to move it and the circular handle to aim it. Adjust the horizontal FOV, direction, or range in **Properties**. New cameras start with a 100° horizontal FOV.
 5. Use **Save project** to write the project to the server. Use **Open** to work on it again.
 
+Choose **Export PDF**, then select **Save as PDF** in the browser’s print dialog. The landscape page fits the full drawing, including any imported background and camera coverage, regardless of the current zoom or selection.
+
 Use the mouse wheel to zoom around the pointer, the middle button or **Pan** to move the canvas, and **Fit** to frame the drawing. Ctrl/Cmd+Z undoes an edit, Ctrl/Cmd+Shift+Z redoes it, and Delete removes the selected object.
 
 This editor models two-dimensional horizontal coverage sectors. The sectors extend through walls and depend on the range you enter. Check mounting height, obstructions, usable image detail, and actual sight lines before installing. Imported PDFs are limited to 25 MiB and rendered at up to 2,800 pixels on the longest edge. Drafting tools cover basic floor plans and overlays. They do not import editable PDF geometry or provide CAD constraints.
