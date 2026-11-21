@@ -10,7 +10,7 @@
   --selected:#1d3b42;--selected-border:#39796f;--selected-text:#a1e8df;--muted:#a8bbd0;
   --canvas:#101925;--grid-line:#304054;--drawing-ink:#c5d7ef;--drawing-accent:#67ded0;
 }
-#background ~ #drawing{--drawing-ink:#263f5b;--drawing-accent:#087c76}
+#background:not([opacity="0"]) ~ #drawing{--drawing-ink:#263f5b;--drawing-accent:#087c76}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 #theme-toggle[aria-pressed=true]{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
 *{box-sizing:border-box}
