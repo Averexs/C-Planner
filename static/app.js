@@ -121,10 +121,10 @@ function drawWall(x, y, x2, y2, color, width, group, openings) {
   if (cursor < length) segment(cursor, length);
 }
 
-function drawObject(object, active, preview = false, openings = []) {
+function drawObject(object, active, parent, openings = [], preview = false) {
   const { type, x, y, x2, y2 } = object;
   const color = active ? 'var(--drawing-accent)' : 'var(--drawing-ink)';
-  const group = svg('g', preview ? {} : { 'data-object': object.id });
+  const group = svg('g', preview ? {} : { 'data-object': object.id }, parent);
   if (type === 'camera') {
     const body = svg('g', { transform: `translate(${x} ${y}) rotate(${object.angle})` }, group);
     svg('rect', { x: -10, y: -7, width: 17, height: 14, rx: 3, fill: color, stroke: '#fff' }, body);
@@ -185,17 +185,49 @@ function renderDrawing() {
     }
   } else background?.remove();
   drawing.replaceChildren();
-  for (const object of plan.objects) if (object.type === 'camera') cone(object, drawing, object.id === selected);
+  drawPlanObjects(drawing, selected, gesture?.draft);
+}
+
+function drawPlanObjects(parent, activeId, draft) {
+  for (const object of plan.objects) {
+    if (object.type === 'camera') cone(object, parent, object.id === activeId);
+  }
   const openings = plan.objects.filter(object => isOpening(object.type));
-  const draft = gesture?.draft;
   const wallOpenings = draft && isOpening(draft.type) ? [...openings, draft] : openings;
   for (const object of plan.objects) {
-    if (object.type !== 'camera' && !isOpening(object.type)) drawObject(object, object.id === selected, false, wallOpenings);
+    if (object.type !== 'camera' && !isOpening(object.type)) drawObject(object, object.id === activeId, parent, wallOpenings);
   }
-  for (const object of openings) drawObject(object, object.id === selected);
-  for (const object of plan.objects) if (object.type === 'camera' && object.id !== selected) drawObject(object, false);
-  if (current()?.type === 'camera') drawObject(current(), true);
-  if (gesture?.draft) drawObject(gesture.draft, true, true, openings);
+  for (const object of openings) drawObject(object, object.id === activeId, parent);
+  for (const object of plan.objects) {
+    if (object.type === 'camera' && object.id !== activeId) drawObject(object, false, parent);
+  }
+  const activeCamera = plan.objects.find(object => object.type === 'camera' && object.id === activeId);
+  if (activeCamera) drawObject(activeCamera, true, parent);
+  if (draft) drawObject(draft, true, parent, openings, true);
+}
+
+function exportPdf() {
+  if (gesture) return;
+  if (!plan.background && !plan.objects.length) {
+    status('Add a floor plan before exporting.');
+    return;
+  }
+  const printable = $('print-plan');
+  printable.replaceChildren();
+  const title = document.createElement('h1');
+  title.textContent = plan.name;
+  printable.append(title);
+  const sheet = svg('svg', { role: 'img', 'aria-label': 'Floor plan and camera coverage' }, printable);
+  const content = svg('g', {}, sheet);
+  if (plan.background) {
+    const { image, width, height } = plan.background;
+    svg('image', { href: image, width, height }, content);
+  }
+  drawPlanObjects(content);
+  const { x, y, width, height } = content.getBBox();
+  const margin = 16;
+  sheet.setAttribute('viewBox', [x - margin, y - margin, width + margin * 2, height + margin * 2].join(' '));
+  window.print();
 }
 
 function field(parent, label, value, change, bounds) {
@@ -648,6 +680,8 @@ for (const control of document.querySelectorAll('[data-close]')) {
 $('undo').onclick = () => history(past, future);
 $('redo').onclick = () => history(future, past);
 $('fit').onclick = fit;
+$('export-pdf').onclick = exportPdf;
+window.addEventListener('afterprint', () => $('print-plan').replaceChildren());
 $('zoom-in').onclick = () => zoom(1.25);
 $('zoom-out').onclick = () => zoom(.8);
 
