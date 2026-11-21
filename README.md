@@ -4,13 +4,13 @@ A self-hosted, browser-based editor for planning security camera placement. Dock
 
 ## Run with Docker Compose
 
-From this directory, run:
+Save `compose.yaml` in a folder and run the following from that folder. The `latest` image must be available on GitHub Container Registry.
 
 ```sh
-docker compose up -d --build
+docker compose up -d
 ```
 
-Open [http://localhost:8080](http://localhost:8080) on the Docker host. Run `docker compose down` to stop it. The `plans` volume retains projects across restarts and rebuilds. Back up that volume to preserve your projects and PDF backgrounds.
+Open [http://localhost:8080](http://localhost:8080) on the Docker host. Run `docker compose down` to stop it. The `plans` volume retains projects across restarts and image updates. Back up that volume to preserve your projects and PDF backgrounds.
 
 From another device on your private network, open `http://DOCKER_HOST_IP:8080` using the Docker host’s LAN IP. If host port 8080 is in use, change the first number in `8080:8080`. The app has no accounts and anyone who can reach it can read and edit its projects. Concurrent saves to the same project use the last completed save.
 
