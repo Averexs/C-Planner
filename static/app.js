@@ -1,6 +1,7 @@
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 const drawing = $('drawing');
+const defaultScale = { pixelsPerUnit: 20, unit: 'ft' };
 const fresh = () => ({ name: 'Untitled plan', objects: [], background: null, scale: null });
 let plan = fresh();
 let id, selected, gesture;
@@ -48,8 +49,8 @@ function updateView() {
 }
 
 function lengthText(pixels) {
-  if (!plan.scale) return Math.round(pixels) + ' px';
-  return Number((pixels / plan.scale.pixelsPerUnit).toPrecision(5)) + ' ' + plan.scale.unit;
+  const { pixelsPerUnit, unit } = plan.scale ?? defaultScale;
+  return Number((pixels / pixelsPerUnit).toPrecision(5)) + ' ' + unit;
 }
 
 function cone(object, parent, active) {
@@ -159,10 +160,16 @@ function renderPanels() {
   objects.replaceChildren();
   const object = current();
   const note = document.createElement('p');
-  note.textContent = object ? names[object.type] : plan.scale
-    ? `Scale: ${Number(plan.scale.pixelsPerUnit.toPrecision(5))} px per ${plan.scale.unit}`
-    : 'Select an object to edit it. Measurements use drawing pixels until you set a scale.';
+  const { pixelsPerUnit, unit } = plan.scale ?? defaultScale;
+  note.textContent = object ? names[object.type] : 'Select an object to edit it.';
   properties.append(note);
+  if (!plan.scale) {
+    const scaleNote = document.createElement('p');
+    scaleNote.textContent = plan.background
+      ? 'PDF scale is estimated. Use Set scale with a known distance for accurate measurements.'
+      : 'Default scale: 1 ft per grid square.';
+    properties.append(scaleNote);
+  }
   if (object) {
     function edit(changes) {
       const before = clone();
@@ -170,23 +177,24 @@ function renderPanels() {
       commit(before);
     }
     field(properties, object.type === 'label' ? 'Text' : 'Name', object.name, name => edit({ name }));
-    for (const key of ['x', 'y']) {
-      field(properties, key.toUpperCase() + ' (px)', Number(object[key].toFixed(2)), value => {
-        const changes = { [key]: value };
-        if (object[key + '2'] !== undefined) changes[key + '2'] = object[key + '2'] + value - object[key];
+    const coordinateBounds = [-1000000 / pixelsPerUnit, 1000000 / pixelsPerUnit];
+    for (const key of ['x', 'y', 'x2', 'y2']) {
+      if (object[key] === undefined) continue;
+      const axis = key[0].toUpperCase();
+      const label = key.length === 1 ? axis : 'End ' + axis;
+      field(properties, `${label} (${unit})`, Number((object[key] / pixelsPerUnit).toPrecision(8)), value => {
+        const position = value * pixelsPerUnit;
+        const changes = { [key]: position };
+        const endpoint = key + '2';
+        if (object[endpoint] !== undefined) changes[endpoint] = object[endpoint] + position - object[key];
         edit(changes);
-      }, [-1000000, 1000000]);
-    }
-    if (object.x2 !== undefined) {
-      field(properties, 'End X (px)', Number(object.x2.toFixed(2)), x2 => edit({ x2 }), [-1000000, 1000000]);
-      field(properties, 'End Y (px)', Number(object.y2.toFixed(2)), y2 => edit({ y2 }), [-1000000, 1000000]);
+      }, coordinateBounds);
     }
     if (object.type === 'camera') {
-      const factor = plan.scale?.pixelsPerUnit ?? 1;
       field(properties, 'Direction (° clockwise from right)', Number(object.angle.toFixed(1)), angle => edit({ angle: angle % 360 }), [0, 360]);
       field(properties, 'Horizontal FOV (°)', object.fov, fov => edit({ fov }), [1, 359]);
-      field(properties, `Range (${plan.scale?.unit ?? 'px'})`, Number((object.range / factor).toPrecision(8)),
-        range => edit({ range: range * factor }), [Math.min(.000001, 1 / factor), 100000 / factor]);
+      field(properties, `Range (${unit})`, Number((object.range / pixelsPerUnit).toPrecision(8)),
+        range => edit({ range: range * pixelsPerUnit }), [Math.min(.000001, 1 / pixelsPerUnit), 100000 / pixelsPerUnit]);
     }
     button('Delete object', removeSelected, properties);
   } else if (plan.background) {
