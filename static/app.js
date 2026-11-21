@@ -72,6 +72,7 @@ function updateView() {
   grid.setAttribute('y', -view.y / view.zoom);
   grid.setAttribute('width', canvas.clientWidth / view.zoom);
   grid.setAttribute('height', canvas.clientHeight / view.zoom);
+  drawing.querySelector('[data-door-swing]')?.setAttribute('r', 8 / view.zoom);
   $('zoom').textContent = Math.round(view.zoom * 100) + '%';
 }
 
@@ -159,11 +160,17 @@ function drawObject(object, active, parent, openings = [], preview = false) {
     for (const [ax, ay] of [[x, y], [x2, y2]]) line(ax - nx * 5, ay - ny * 5, ax + nx * 5, ay + ny * 5);
   } else if (type === 'door') {
     const radius = Math.hypot(x2 - x, y2 - y);
-    const openX = x - (y2 - y);
-    const openY = y + (x2 - x);
-    const path = `M ${x} ${y} L ${openX} ${openY} A ${radius} ${radius} 0 0 0 ${x2} ${y2}`;
+    const side = object.reverseSwing ? -1 : 1;
+    const openX = x - side * (y2 - y);
+    const openY = y + side * (x2 - x);
+    const path = `M ${x} ${y} L ${openX} ${openY} A ${radius} ${radius} 0 0 ${object.reverseSwing ? 1 : 0} ${x2} ${y2}`;
     svg('path', { d: path, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }, group);
     svg('path', { d: path, fill: 'none', stroke: color, 'stroke-width': 2 }, group);
+    if (active && !preview) {
+      const dot = svg('circle', { cx: openX, cy: openY, r: 8 / view.zoom, fill: '#fff', stroke: color,
+        'stroke-width': 2, 'vector-effect': 'non-scaling-stroke', cursor: 'pointer', 'data-door-swing': '' }, group);
+      svg('title', {}, dot, 'Flip door swing');
+    }
   } else {
     const line = { x1: x, y1: y, x2, y2 };
     svg('line', { ...line, stroke: 'transparent', 'stroke-width': 14 }, group);
@@ -176,6 +183,11 @@ function drawObject(object, active, parent, openings = [], preview = false) {
   }
 }
 
+function updatePdfOpacity(opacity) {
+  $('background')?.setAttribute('opacity', opacity / 100);
+  $('pdf-opacity-value').textContent = opacity + '%';
+}
+
 function renderDrawing() {
   let background = $('background');
   if (plan.background) {
@@ -186,6 +198,10 @@ function renderDrawing() {
       $('world').insertBefore(background, drawing);
     }
   } else background?.remove();
+  const opacity = plan.background?.opacity ?? 100;
+  $('pdf-opacity-control').hidden = !plan.background;
+  $('pdf-opacity').value = opacity;
+  updatePdfOpacity(opacity);
   drawing.replaceChildren();
   drawPlanObjects(drawing, selected, gesture?.draft);
 }
@@ -210,7 +226,8 @@ function drawPlanObjects(parent, activeId, draft) {
 
 function exportPdf() {
   if (gesture) return;
-  if (!plan.background && !plan.objects.length) {
+  const opacity = plan.background?.opacity ?? 100;
+  if ((!plan.background || opacity === 0) && !plan.objects.length) {
     status('Add a floor plan before exporting.');
     return;
   }
@@ -221,9 +238,9 @@ function exportPdf() {
   printable.append(title);
   const sheet = svg('svg', { role: 'img', 'aria-label': 'Floor plan and camera coverage' }, printable);
   const content = svg('g', {}, sheet);
-  if (plan.background) {
+  if (plan.background && opacity > 0) {
     const { image, width, height } = plan.background;
-    svg('image', { href: image, width, height }, content);
+    svg('image', { href: image, width, height, opacity: opacity / 100 }, content);
   }
   drawPlanObjects(content);
   const { x, y, width, height } = content.getBBox();
@@ -306,6 +323,11 @@ function renderPanels() {
       field(properties, 'Horizontal FOV (°)', object.fov, fov => edit({ fov }), [1, 359]);
       field(properties, `Range (${unit})`, Number((object.range / pixelsPerUnit).toPrecision(8)),
         range => edit({ range: range * pixelsPerUnit }), [Math.min(.000001, 1 / pixelsPerUnit), 100000 / pixelsPerUnit]);
+    }
+    if (object.type === 'door') {
+      button('Flip swing', () => flipDoorSwing(object), properties);
+      button('Swap hinge', () => edit({ x: object.x2, y: object.y2, x2: object.x, y2: object.y,
+        reverseSwing: !object.reverseSwing }), properties);
     }
     button('Delete object', removeSelected, properties);
   } else if (plan.background) {
@@ -469,6 +491,12 @@ function addCamera(point) {
   add('camera', snap(point), { angle: 0, fov: 100, range: 160 });
 }
 
+function flipDoorSwing(door) {
+  const before = clone();
+  door.reverseSwing = !door.reverseSwing;
+  commit(before);
+}
+
 function removeSelected() {
   if (!current() || gesture) return;
   const before = clone();
@@ -482,6 +510,10 @@ canvas.addEventListener('pointerdown', event => {
   event.preventDefault();
   const screen = local(event);
   const point = world(screen);
+  if (event.button === 0 && event.target.closest('[data-door-swing]')) {
+    const door = current();
+    if (door?.type === 'door') return flipDoorSwing(door);
+  }
   if (event.button === 1 || tool === 'pan') {
     gesture = { mode: 'pan', screen, view: { ...view } };
   } else if (tool === 'select') {
@@ -760,6 +792,14 @@ for (const control of document.querySelectorAll('[data-close]')) {
 $('undo').onclick = () => history(past, future);
 $('redo').onclick = () => history(future, past);
 $('fit').onclick = fit;
+$('pdf-opacity').addEventListener('input', event => updatePdfOpacity(event.target.valueAsNumber));
+$('pdf-opacity').addEventListener('change', event => {
+  const opacity = event.target.valueAsNumber;
+  if (!plan.background || opacity === (plan.background.opacity ?? 100)) return;
+  const before = clone();
+  plan.background.opacity = opacity;
+  commit(before);
+});
 $('export-pdf').onclick = exportPdf;
 window.addEventListener('afterprint', () => $('print-plan').replaceChildren());
 $('zoom-in').onclick = () => zoom(1.25);
