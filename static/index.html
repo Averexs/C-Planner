@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Camera Floor Planner</title>
+<link rel="stylesheet" href="/style.css">
+<script type="module" src="/app.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="mark" aria-hidden="true">◈</span> Camera Floor Planner</div>
+  <input id="name" aria-label="Project name" maxlength="100" value="Untitled plan">
+  <div class="project-actions">
+    <button id="new">New</button><button id="open">Open</button>
+    <button id="import">Import PDF</button><button id="save" class="primary">Save project</button>
+  </div>
+</header>
+<main>
+  <nav aria-label="Drawing tools">
+    <h2>Tools</h2>
+    <button data-tool="select" title="V"><span>↖</span> Select</button>
+    <button data-tool="pan" title="H"><span>✥</span> Pan</button>
+    <button data-tool="wall" title="W"><span>╱</span> Wall</button>
+    <button data-tool="room" title="R"><span>□</span> Room</button>
+    <button data-tool="door" title="D"><span>◿</span> Door</button>
+    <button data-tool="label" title="T"><span>T</span> Label</button>
+    <button data-tool="measure" title="M"><span>↔</span> Measure</button>
+    <button data-tool="scale"><span>⌖</span> Set scale</button>
+    <h2>Equipment</h2>
+    <button data-tool="camera" id="camera-tool" draggable="true" title="C"><span>▣</span> Camera</button>
+    <small>Drag onto plan or click to place</small>
+  </nav>
+  <section class="workspace" aria-label="Drawing workspace">
+    <div class="canvas-bar">
+      <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Shift+Z">Redo</button>
+      <label><input type="checkbox" id="snap" checked> Snap to grid</label>
+      <div class="spacer"></div>
+      <button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom"></output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
+    </div>
+    <svg id="canvas" aria-label="Floor plan canvas">
+      <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#d9e2ed" stroke-width="1"/></pattern></defs>
+      <g id="world"><rect id="grid-area" fill="url(#grid)"/><g id="drawing"></g></g>
+    </svg>
+    <footer><span id="hint"></span><span id="status" role="status"></span></footer>
+  </section>
+  <aside>
+    <h2>Properties</h2>
+    <div id="properties"></div>
+    <h2>Objects</h2>
+    <div id="objects"></div>
+  </aside>
+</main>
+<dialog id="pdf-dialog">
+  <form id="pdf-form">
+    <h2>Import PDF floor plan</h2>
+    <p>The selected page becomes the background for this project.</p>
+    <label>PDF file <input id="pdf-file" type="file" accept=".pdf,application/pdf" required></label>
+    <label>Page number <input id="pdf-page" type="number" min="1" value="1" required></label>
+    <p id="pdf-status" role="status"></p>
+    <div class="dialog-actions"><button type="button" data-close="pdf-dialog">Cancel</button><button class="primary" id="pdf-submit">Import page</button></div>
+  </form>
+</dialog>
+<dialog id="open-dialog">
+  <h2>Open project</h2><div id="projects"></div>
+  <div class="dialog-actions"><button data-close="open-dialog">Close</button></div>
+</dialog>
+</body>
+</html>
