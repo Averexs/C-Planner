@@ -4,9 +4,11 @@ services:
     ports:
       - 8080:8080
     environment:
-      PLANNER_DATA: /config
+      PLANNER_DATA: /data
     volumes:
-      - plans:/config
+      - config:/config
+      - plans:/data
     restart: unless-stopped
 volumes:
+  config:
   plans:
