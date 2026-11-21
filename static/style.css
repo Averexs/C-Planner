@@ -1,0 +1,49 @@
+:root{font:14px system-ui,sans-serif;color:#1e3047;background:#fff;color-scheme:light}
+*{box-sizing:border-box}
+body{margin:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+header,.canvas-bar,footer,.project-actions,.dialog-actions{display:flex;align-items:center;gap:8px}
+header{padding:12px 18px;border-bottom:1px solid #dce4ed;gap:16px;flex-wrap:wrap}
+.brand{font-weight:750;font-size:17px;white-space:nowrap}
+.mark{color:#087c76;font-size:25px;vertical-align:middle;margin-right:7px}
+.project-actions{margin-left:auto;flex-wrap:wrap}
+button,input,select{font:inherit;color:inherit}
+button{background:white;border:1px solid #ccd8e5;border-radius:6px;padding:7px 10px;cursor:pointer}
+button:hover:not(:disabled){background:#eef4f9}
+button:disabled{opacity:.45;cursor:default}
+button.primary{background:#087c76;color:white;border-color:#087c76}
+button.primary:hover:not(:disabled){background:#066a65}
+input:not([type=checkbox]),select{border:1px solid #ccd8e5;border-radius:6px;padding:7px 8px;min-width:0;background:#fff}
+input[type=checkbox]{accent-color:#087c76}
+#name{width:185px}
+main{flex:1;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr) 245px}
+nav,aside{padding:14px 12px;overflow:auto;background:#fff}
+nav{border-right:1px solid #dce4ed}
+aside{border-left:1px solid #dce4ed}
+h2{font-size:13px;margin:4px 0 12px;font-weight:750}
+nav h2:not(:first-child),aside h2:not(:first-child){margin-top:22px}
+nav button,#objects button,#projects button{display:block;width:100%;text-align:left;margin:0 0 5px}
+nav button{border-color:transparent}
+nav button span{display:inline-block;width:22px;color:#087c76}
+button.active{background:#e2f4f1;border-color:#a9ded5;color:#075b57}
+small,p{color:#53677f;line-height:1.45}
+nav small{display:block;margin:5px 6px}
+.workspace{display:flex;flex-direction:column;min-height:0;min-width:0}
+.canvas-bar,footer{min-height:42px;padding:6px 10px;background:#fff;flex-wrap:wrap}
+.canvas-bar{border-bottom:1px solid #dce4ed}
+footer{border-top:1px solid #dce4ed;justify-content:space-between;color:#526781;font-size:12px}
+#status{color:#076f69}
+.spacer{flex:1}
+#zoom{min-width:39px;text-align:center}
+#canvas{display:block;width:100%;flex:1;min-height:0;background:#f0f5fa;touch-action:none;user-select:none}
+#canvas[data-tool=pan]{cursor:grab}
+#canvas:not([data-tool=pan]):not([data-tool=select]){cursor:crosshair}
+#properties label,#pdf-form label{display:grid;gap:4px;margin-bottom:9px;font-size:12px}
+#properties p{margin:0 0 10px}
+#objects button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+dialog{border:1px solid #cad8e4;border-radius:12px;padding:22px;width:min(420px,90vw);color:inherit}
+dialog::backdrop{background:#23364c80}
+dialog h2{font-size:18px}
+.dialog-actions{justify-content:flex-end;margin-top:12px}
+#projects{max-height:55vh;overflow:auto}
+@media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr) 170px}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
+@media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid #dce4ed}}
