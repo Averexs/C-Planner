@@ -61,3 +61,16 @@ dialog h2{font-size:18px}
 #projects{max-height:55vh;overflow:auto}
 @media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr) 170px}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
 @media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid var(--divider)}}
+
+#print-plan{
+  position:fixed;left:-10000px;top:0;visibility:hidden;
+  --drawing-ink:#263f5b;--drawing-accent:#087c76;
+}
+@media print{
+  @page{size:landscape;margin:12mm}
+  body:has(#print-plan:not(:empty)){height:auto;display:block;overflow:visible;background:#fff;color:#1e3047;color-scheme:light}
+  body:has(#print-plan:not(:empty)) > :not(#print-plan){display:none}
+  #print-plan:not(:empty){position:static;visibility:visible;color:#1e3047;background:#fff;print-color-adjust:exact}
+  #print-plan h1{font-size:18pt;margin:0 0 4mm;overflow-wrap:anywhere}
+  #print-plan svg{display:block;width:100%;height:145mm}
+}
