@@ -1,6 +1,30 @@
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
 const drawing = $('drawing');
+const themeToggle = $('theme-toggle');
+const themeKey = 'camera-planner-theme';
+
+function applyTheme(dark) {
+  document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+  themeToggle.setAttribute('aria-pressed', String(dark));
+}
+
+let savedTheme;
+try {
+  savedTheme = localStorage.getItem(themeKey);
+} catch {
+  // Storage may be disabled by the browser.
+}
+applyTheme(savedTheme === 'dark');
+themeToggle.addEventListener('click', () => {
+  const dark = document.documentElement.dataset.theme !== 'dark';
+  applyTheme(dark);
+  try {
+    localStorage.setItem(themeKey, dark ? 'dark' : 'light');
+  } catch {
+    // The current tab can still switch themes.
+  }
+});
 const defaultScale = { pixelsPerUnit: 20, unit: 'ft' };
 const fresh = () => ({ name: 'Untitled plan', objects: [], background: null, scale: null });
 let plan = fresh();
@@ -59,14 +83,14 @@ function cone(object, parent, active) {
   const b = polar(x, y, range, angle + fov / 2);
   svg('path', {
     d: `M ${x} ${y} L ${a.join(' ')} A ${range} ${range} 0 ${fov > 180 ? 1 : 0} 1 ${b.join(' ')} Z`,
-    fill: '#12a899', 'fill-opacity': active ? .25 : .15, stroke: '#087c76',
+    fill: '#12a899', 'fill-opacity': active ? .25 : .15, stroke: 'var(--drawing-accent)',
     'stroke-opacity': active ? .85 : .55, 'pointer-events': 'none',
   }, parent);
 }
 
 function drawObject(object, active, preview = false) {
   const { type, x, y, x2, y2 } = object;
-  const color = active ? '#087c76' : '#263f5b';
+  const color = active ? 'var(--drawing-accent)' : 'var(--drawing-ink)';
   const group = svg('g', preview ? {} : { 'data-object': object.id });
   if (type === 'camera') {
     const body = svg('g', { transform: `translate(${x} ${y}) rotate(${object.angle})` }, group);
