@@ -3,17 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Camera Floor Planner</title>
+<title>Camera Planner</title>
 <link rel="stylesheet" href="/style.css">
 <script type="module" src="/app.js"></script>
 </head>
 <body>
 <header>
-  <div class="brand"><span class="mark" aria-hidden="true">◈</span> Camera Floor Planner</div>
+  <div class="brand"><span class="mark" aria-hidden="true">◈</span> Camera Planner</div>
   <input id="name" aria-label="Project name" maxlength="100" value="Untitled plan">
   <div class="project-actions">
     <button id="new">New</button><button id="open">Open</button>
     <button id="import">Import PDF</button><button id="save" class="primary">Save project</button>
+    <button id="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
   </div>
 </header>
 <main>
@@ -39,7 +40,7 @@
       <button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom"></output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
     </div>
     <svg id="canvas" aria-label="Floor plan canvas">
-      <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#d9e2ed" stroke-width="1"/></pattern></defs>
+      <defs><pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="var(--grid-line)" stroke-width="1"/></pattern></defs>
       <g id="world"><rect id="grid-area" fill="url(#grid)"/><g id="drawing"></g></g>
     </svg>
     <footer><span id="hint"></span><span id="status" role="status"></span></footer>

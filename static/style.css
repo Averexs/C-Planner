@@ -1,49 +1,63 @@
-:root{font:14px system-ui,sans-serif;color:#1e3047;background:#fff;color-scheme:light}
+:root{font:14px system-ui,sans-serif;color:var(--text);background:var(--surface);color-scheme:light;
+  --text:#1e3047;--surface:#fff;--divider:#dce4ed;--control-border:#ccd8e5;
+  --hover:#eef4f9;--accent:#087c76;--primary:#087c76;--primary-hover:#066a65;
+  --selected:#e2f4f1;--selected-border:#a9ded5;--selected-text:#075b57;--muted:#53677f;
+  --canvas:#f0f5fa;--grid-line:#d9e2ed;--drawing-ink:#263f5b;--drawing-accent:#087c76;
+}
+:root[data-theme=dark]{color-scheme:dark;
+  --text:#e2eaf3;--surface:#151e2b;--divider:#334256;--control-border:#495d75;
+  --hover:#243449;--accent:#64d5c9;--primary:#08766f;--primary-hover:#076961;
+  --selected:#1d3b42;--selected-border:#39796f;--selected-text:#a1e8df;--muted:#a8bbd0;
+  --canvas:#101925;--grid-line:#304054;--drawing-ink:#c5d7ef;--drawing-accent:#67ded0;
+}
+#background ~ #drawing{--drawing-ink:#263f5b;--drawing-accent:#087c76}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#theme-toggle[aria-pressed=true]{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
 *{box-sizing:border-box}
 body{margin:0;height:100dvh;display:flex;flex-direction:column;overflow:hidden}
 header,.canvas-bar,footer,.project-actions,.dialog-actions{display:flex;align-items:center;gap:8px}
-header{padding:12px 18px;border-bottom:1px solid #dce4ed;gap:16px;flex-wrap:wrap}
+header{padding:12px 18px;border-bottom:1px solid var(--divider);gap:16px;flex-wrap:wrap}
 .brand{font-weight:750;font-size:17px;white-space:nowrap}
-.mark{color:#087c76;font-size:25px;vertical-align:middle;margin-right:7px}
+.mark{color:var(--accent);font-size:25px;vertical-align:middle;margin-right:7px}
 .project-actions{margin-left:auto;flex-wrap:wrap}
 button,input,select{font:inherit;color:inherit}
-button{background:white;border:1px solid #ccd8e5;border-radius:6px;padding:7px 10px;cursor:pointer}
-button:hover:not(:disabled){background:#eef4f9}
+button{background:var(--surface);border:1px solid var(--control-border);border-radius:6px;padding:7px 10px;cursor:pointer}
+button:hover:not(:disabled){background:var(--hover)}
 button:disabled{opacity:.45;cursor:default}
-button.primary{background:#087c76;color:white;border-color:#087c76}
-button.primary:hover:not(:disabled){background:#066a65}
-input:not([type=checkbox]),select{border:1px solid #ccd8e5;border-radius:6px;padding:7px 8px;min-width:0;background:#fff}
-input[type=checkbox]{accent-color:#087c76}
+button.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
+button.primary:hover:not(:disabled){background:var(--primary-hover)}
+input:not([type=checkbox]),select{border:1px solid var(--control-border);border-radius:6px;padding:7px 8px;min-width:0;background:var(--surface)}
+input[type=checkbox]{accent-color:var(--accent)}
 #name{width:185px}
 main{flex:1;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr) 245px}
-nav,aside{padding:14px 12px;overflow:auto;background:#fff}
-nav{border-right:1px solid #dce4ed}
-aside{border-left:1px solid #dce4ed}
+nav,aside{padding:14px 12px;overflow:auto;background:var(--surface)}
+nav{border-right:1px solid var(--divider)}
+aside{border-left:1px solid var(--divider)}
 h2{font-size:13px;margin:4px 0 12px;font-weight:750}
 nav h2:not(:first-child),aside h2:not(:first-child){margin-top:22px}
 nav button,#objects button,#projects button{display:block;width:100%;text-align:left;margin:0 0 5px}
 nav button{border-color:transparent}
-nav button span{display:inline-block;width:22px;color:#087c76}
-button.active{background:#e2f4f1;border-color:#a9ded5;color:#075b57}
-small,p{color:#53677f;line-height:1.45}
+nav button span{display:inline-block;width:22px;color:var(--accent)}
+button.active{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
+small,p{color:var(--muted);line-height:1.45}
 nav small{display:block;margin:5px 6px}
 .workspace{display:flex;flex-direction:column;min-height:0;min-width:0}
-.canvas-bar,footer{min-height:42px;padding:6px 10px;background:#fff;flex-wrap:wrap}
-.canvas-bar{border-bottom:1px solid #dce4ed}
-footer{border-top:1px solid #dce4ed;justify-content:space-between;color:#526781;font-size:12px}
-#status{color:#076f69}
+.canvas-bar,footer{min-height:42px;padding:6px 10px;background:var(--surface);flex-wrap:wrap}
+.canvas-bar{border-bottom:1px solid var(--divider)}
+footer{border-top:1px solid var(--divider);justify-content:space-between;color:var(--muted);font-size:12px}
+#status{color:var(--accent)}
 .spacer{flex:1}
 #zoom{min-width:39px;text-align:center}
-#canvas{display:block;width:100%;flex:1;min-height:0;background:#f0f5fa;touch-action:none;user-select:none}
+#canvas{display:block;width:100%;flex:1;min-height:0;background:var(--canvas);touch-action:none;user-select:none}
 #canvas[data-tool=pan]{cursor:grab}
 #canvas:not([data-tool=pan]):not([data-tool=select]){cursor:crosshair}
 #properties label,#pdf-form label{display:grid;gap:4px;margin-bottom:9px;font-size:12px}
 #properties p{margin:0 0 10px}
 #objects button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-dialog{border:1px solid #cad8e4;border-radius:12px;padding:22px;width:min(420px,90vw);color:inherit}
+dialog{background:var(--surface);border:1px solid var(--control-border);border-radius:12px;padding:22px;width:min(420px,90vw);color:inherit}
 dialog::backdrop{background:#23364c80}
 dialog h2{font-size:18px}
 .dialog-actions{justify-content:flex-end;margin-top:12px}
 #projects{max-height:55vh;overflow:auto}
 @media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr) 170px}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
-@media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid #dce4ed}}
+@media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid var(--divider)}}
