@@ -123,7 +123,9 @@ function drawWall(x, y, x2, y2, color, width, group, openings) {
 
 function drawObject(object, active, parent, openings = [], preview = false) {
   const { type, x, y, x2, y2 } = object;
-  const color = active ? 'var(--drawing-accent)' : 'var(--drawing-ink)';
+  const color = type === 'wall' || type === 'room'
+    ? (active ? '#ff4752' : '#e33138')
+    : (active ? 'var(--drawing-accent)' : 'var(--drawing-ink)');
   const group = svg('g', preview ? {} : { 'data-object': object.id }, parent);
   if (type === 'camera') {
     const body = svg('g', { transform: `translate(${x} ${y}) rotate(${object.angle})` }, group);
