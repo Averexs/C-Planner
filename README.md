@@ -12,9 +12,9 @@ docker compose up -d
 
 Open [http://localhost:8080](http://localhost:8080) on the Docker host. Run `docker compose down` to stop it. The `plans` volume retains projects across restarts and image updates. Back up that volume to preserve your projects and PDF backgrounds. It is a Docker-managed named volume, so a local `plans/` directory beside `compose.yaml` will not show the saved projects. Run `docker compose exec planner sh -c 'ls -la "$PLANNER_DATA"'` to list project files, or use **Open** in the app. If saving fails, check `docker compose logs planner`.
 
-The image contains the app code in `/app`. The Compose file mounts persistent project storage at `/config`. To store the files in a host directory, replace `plans:/config` with an absolute host path such as `/var/docker/c-planner/plans:/config`. Keep `PLANNER_DATA: /config` and make the host directory writable by the container user (UID 10001).
+The image contains the app code in `/app`. Compose mounts `config:/config` separately from `plans:/data`. The app reads and writes projects in the directory named by `PLANNER_DATA`, so leave it set to `/data` for this layout. The app currently has no server settings files to store in `/config`.
 
-Existing setups can keep their `/data` mount. To switch to `/config`, keep the same named volume or host folder, change only the mount destination to `/config`, and set `PLANNER_DATA: /config`. This reuses the existing files in place.
+For host directories, use distinct bind mounts such as `/var/docker/c-planner/config:/config` and `/var/docker/c-planner/plans:/data`. Make the plans directory writable by the container user (UID 10001). If your previous setup mounted the plans volume or folder at `/config`, mount that same volume or folder at `/data` and change `PLANNER_DATA` to `/data` to reuse your saved files.
 
 From another device on your private network, open `http://DOCKER_HOST_IP:8080` using the Docker host’s LAN IP. If host port 8080 is in use, change the first number in `8080:8080`. The app has no accounts and anyone who can reach it can read and edit its projects. Concurrent saves to the same project use the last completed save.
 
