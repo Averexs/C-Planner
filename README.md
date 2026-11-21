@@ -12,7 +12,7 @@ docker compose up -d --build
 
 Open [http://localhost:8080](http://localhost:8080) on the Docker host. Run `docker compose down` to stop it. The `plans` volume retains projects across restarts and rebuilds. Back up that volume to preserve your projects and PDF backgrounds.
 
-For access from another computer, use an SSH tunnel or a reverse proxy with authentication. The default listener binds to loopback. For a trusted private network you can explicitly set `PLANNER_BIND` to the host's private IP in a `.env` file and browse to that IP. Set `PLANNER_PORT` there if port 8080 is in use. The app has no accounts and anyone who can reach it can read and edit its projects. Concurrent saves to the same project use the last completed save.
+From another device on your private network, open `http://DOCKER_HOST_IP:8080` using the Docker host’s LAN IP. If host port 8080 is in use, change the first number in `8080:8080`. The app has no accounts and anyone who can reach it can read and edit its projects. Concurrent saves to the same project use the last completed save.
 
 The **Dark mode** button in the header switches the editor theme. The browser remembers your choice.
 
