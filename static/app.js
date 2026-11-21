@@ -483,7 +483,6 @@ function add(type, point, details = {}) {
     type, name: `${names[type]} ${count + 1}`, ...point, ...details };
   plan.objects.push(object);
   selected = object.id;
-  if (type === 'camera' || type === 'label') setTool('select');
   commit(before);
 }
 
@@ -707,6 +706,7 @@ $('save').onclick = async () => {
   if (control.disabled || gesture) return;
   control.disabled = true;
   const savedRevision = revision;
+  status('Saving project…');
   try {
     const result = await request(id ? '/api/projects/' + id : '/api/projects', {
       method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(plan),
@@ -715,9 +715,11 @@ $('save').onclick = async () => {
     if (revision === savedRevision) {
       dirty = false;
       status('Project saved');
+    } else {
+      status('Project saved · Newer changes are unsaved');
     }
   } catch (error) {
-    status(error.message);
+    status('Save failed: ' + error.message);
   } finally {
     control.disabled = false;
   }

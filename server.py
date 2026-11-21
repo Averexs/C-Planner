@@ -110,14 +110,18 @@ class Handler(BaseHTTPRequestHandler):
             path = DATA / (project_id + ".json")
             if match and not path.is_file():
                 raise RequestError(404, "Project not found.")
-            with tempfile.NamedTemporaryFile(dir=DATA, delete=False) as target:
-                temporary = Path(target.name)
-                try:
-                    target.write(raw)
-                    target.close()
-                    temporary.replace(path)
-                finally:
-                    temporary.unlink(missing_ok=True)
+            try:
+                with tempfile.NamedTemporaryFile(dir=DATA, delete=False) as target:
+                    temporary = Path(target.name)
+                    try:
+                        target.write(raw)
+                        target.close()
+                        temporary.replace(path)
+                    finally:
+                        temporary.unlink(missing_ok=True)
+            except OSError as error:
+                self.log_error("Cannot save project in %s: %s", DATA, error)
+                raise RequestError(500, "The server could not write to its plans storage. Check the Docker logs.") from error
             return self.send_json({"id": project_id}, 200 if match else 201)
         raise RequestError(404, "Not found.")
 
