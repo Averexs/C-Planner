@@ -39,6 +39,10 @@
     <div class="canvas-bar">
       <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Shift+Z">Redo</button>
       <label><input type="checkbox" id="snap" checked> Snap to grid</label>
+      <label id="pdf-opacity-control" hidden>PDF opacity
+        <input id="pdf-opacity" type="range" min="0" max="100" value="100">
+        <span id="pdf-opacity-value">100%</span>
+      </label>
       <div class="spacer"></div>
       <button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom"></output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
     </div>
