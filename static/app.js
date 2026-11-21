@@ -38,13 +38,16 @@ const tips = {
   pan: 'Drag to pan the drawing.',
   wall: 'Drag from one end of the wall to the other.',
   room: 'Drag between opposite corners of the room.',
-  door: 'Drag from the hinge toward the closed end. Leave an opening in the wall.',
+  door: 'Drag from the hinge toward the closed end along the wall.',
+  doorway: 'Drag between the two sides of the doorway along the wall.',
+  window: 'Drag between the ends of the window along the wall.',
   label: 'Click to place a label.',
   measure: 'Drag between two points to add a dimension.',
   scale: 'Turn off snapping, then drag along a known distance.',
   camera: 'Click to place a camera or drag one from the toolbar.',
 };
-const names = { wall: 'Wall', room: 'Room', door: 'Door', measure: 'Dimension', camera: 'Camera', label: 'Label' };
+const names = { wall: 'Wall', room: 'Room', door: 'Door', doorway: 'Doorway', window: 'Window', measure: 'Dimension', camera: 'Camera', label: 'Label' };
+const isOpening = type => ['door', 'doorway', 'window'].includes(type);
 const distance = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
 const radians = degrees => degrees * Math.PI / 180;
 const direction = (a, b) => (Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI + 360) % 360;
@@ -88,7 +91,37 @@ function cone(object, parent, active) {
   }, parent);
 }
 
-function drawObject(object, active, preview = false) {
+function drawWall(x, y, x2, y2, color, width, group, openings) {
+  const length = Math.hypot(x2 - x, y2 - y);
+  if (!length) return;
+  const dx = (x2 - x) / length;
+  const dy = (y2 - y) / length;
+  const gaps = [];
+  for (const opening of openings) {
+    const { x: ax, y: ay, x2: bx, y2: by } = opening;
+    if (Math.abs((ax - x) * dy - (ay - y) * dx) > .75 ||
+        Math.abs((bx - x) * dy - (by - y) * dx) > .75) continue;
+    const start = (ax - x) * dx + (ay - y) * dy;
+    const end = (bx - x) * dx + (by - y) * dy;
+    const left = Math.max(0, Math.min(start, end));
+    const right = Math.min(length, Math.max(start, end));
+    if (left < right) gaps.push([left, right]);
+  }
+  gaps.sort((a, b) => a[0] - b[0]);
+  function segment(start, end) {
+    const line = { x1: x + start * dx, y1: y + start * dy, x2: x + end * dx, y2: y + end * dy };
+    svg('line', { ...line, stroke: 'transparent', 'stroke-width': 14 }, group);
+    svg('line', { ...line, stroke: color, 'stroke-width': width }, group);
+  }
+  let cursor = 0;
+  for (const [start, end] of gaps) {
+    if (start > cursor) segment(cursor, start);
+    cursor = Math.max(cursor, end);
+  }
+  if (cursor < length) segment(cursor, length);
+}
+
+function drawObject(object, active, preview = false, openings = []) {
   const { type, x, y, x2, y2 } = object;
   const color = active ? 'var(--drawing-accent)' : 'var(--drawing-ink)';
   const group = svg('g', preview ? {} : { 'data-object': object.id });
@@ -105,9 +138,23 @@ function drawObject(object, active, preview = false) {
   } else if (type === 'label') {
     svg('text', { x, y, fill: color, 'font-size': 16, 'font-weight': 600 }, group, object.name);
   } else if (type === 'room') {
-    const rectangle = { x: Math.min(x, x2), y: Math.min(y, y2), width: Math.abs(x2 - x), height: Math.abs(y2 - y) };
-    svg('rect', { ...rectangle, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }, group);
-    svg('rect', { ...rectangle, fill: 'none', stroke: color, 'stroke-width': 4 }, group);
+    drawWall(x, y, x2, y, color, 4, group, openings);
+    drawWall(x2, y, x2, y2, color, 4, group, openings);
+    drawWall(x2, y2, x, y2, color, 4, group, openings);
+    drawWall(x, y2, x, y, color, 4, group, openings);
+  } else if (type === 'wall') {
+    drawWall(x, y, x2, y2, color, 5, group, openings);
+  } else if (type === 'doorway' || type === 'window') {
+    const length = Math.hypot(x2 - x, y2 - y);
+    if (!length) return;
+    const nx = -(y2 - y) / length;
+    const ny = (x2 - x) / length;
+    const line = (ax, ay, bx, by) => svg('line', { x1: ax, y1: ay, x2: bx, y2: by, stroke: color, 'stroke-width': 1.75 }, group);
+    svg('line', { x1: x, y1: y, x2, y2, stroke: 'transparent', 'stroke-width': 14 }, group);
+    if (type === 'window') {
+      for (const offset of [-3, 3]) line(x + nx * offset, y + ny * offset, x2 + nx * offset, y2 + ny * offset);
+    }
+    for (const [ax, ay] of [[x, y], [x2, y2]]) line(ax - nx * 5, ay - ny * 5, ax + nx * 5, ay + ny * 5);
   } else if (type === 'door') {
     const radius = Math.hypot(x2 - x, y2 - y);
     const openX = x - (y2 - y);
@@ -118,7 +165,7 @@ function drawObject(object, active, preview = false) {
   } else {
     const line = { x1: x, y1: y, x2, y2 };
     svg('line', { ...line, stroke: 'transparent', 'stroke-width': 14 }, group);
-    svg('line', { ...line, stroke: color, 'stroke-width': type === 'wall' ? 5 : 1.6 }, group);
+    svg('line', { ...line, stroke: color, 'stroke-width': 1.6 }, group);
     if (type === 'measure') {
       for (const [cx, cy] of [[x, y], [x2, y2]]) svg('circle', { cx, cy, r: 3, fill: color }, group);
       svg('text', { x: (x + x2) / 2, y: (y + y2) / 2 - 7, fill: color, 'font-size': 13, 'text-anchor': 'middle' },
@@ -139,10 +186,16 @@ function renderDrawing() {
   } else background?.remove();
   drawing.replaceChildren();
   for (const object of plan.objects) if (object.type === 'camera') cone(object, drawing, object.id === selected);
-  for (const object of plan.objects) if (object.type !== 'camera') drawObject(object, object.id === selected);
+  const openings = plan.objects.filter(object => isOpening(object.type));
+  const draft = gesture?.draft;
+  const wallOpenings = draft && isOpening(draft.type) ? [...openings, draft] : openings;
+  for (const object of plan.objects) {
+    if (object.type !== 'camera' && !isOpening(object.type)) drawObject(object, object.id === selected, false, wallOpenings);
+  }
+  for (const object of openings) drawObject(object, object.id === selected);
   for (const object of plan.objects) if (object.type === 'camera' && object.id !== selected) drawObject(object, false);
   if (current()?.type === 'camera') drawObject(current(), true);
-  if (gesture?.draft) drawObject(gesture.draft, true, true);
+  if (gesture?.draft) drawObject(gesture.draft, true, true, openings);
 }
 
 function field(parent, label, value, change, bounds) {
@@ -619,7 +672,7 @@ window.addEventListener('keydown', event => {
     setTool('select');
     render();
   }
-  const shortcut = { v: 'select', h: 'pan', w: 'wall', r: 'room', d: 'door', t: 'label', m: 'measure', c: 'camera' }[key];
+  const shortcut = { v: 'select', h: 'pan', w: 'wall', r: 'room', d: 'door', o: 'doorway', n: 'window', t: 'label', m: 'measure', c: 'camera' }[key];
   if (shortcut) setTool(shortcut);
 });
 
