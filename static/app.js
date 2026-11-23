@@ -34,7 +34,7 @@ let view = { x: 28, y: 28, zoom: 1 };
 let past = [], future = [];
 let dirty = false, revision = 0;
 const tips = {
-  select: 'Drag objects to move them. Drag the camera handle to aim.',
+  select: 'Drag a wall end to resize it. Drag objects to move them or the camera handle to aim.',
   pan: 'Drag to pan the drawing.',
   wall: 'Drag to trace a wall. Nearby joins and nearly straight strokes snap automatically.',
   room: 'Drag between opposite corners of the room.',
@@ -73,6 +73,9 @@ function updateView() {
   grid.setAttribute('width', canvas.clientWidth / view.zoom);
   grid.setAttribute('height', canvas.clientHeight / view.zoom);
   drawing.querySelector('[data-door-swing]')?.setAttribute('r', 8 / view.zoom);
+  for (const handle of drawing.querySelectorAll('[data-wall-end]')) {
+    handle.setAttribute('r', 7 / view.zoom);
+  }
   $('zoom').textContent = Math.round(view.zoom * 100) + '%';
 }
 
@@ -204,6 +207,18 @@ function renderDrawing() {
   updatePdfOpacity(opacity);
   drawing.replaceChildren();
   drawPlanObjects(drawing, selected, gesture?.draft);
+  const wall = current();
+  if (wall?.type === 'wall') {
+    const handles = svg('g', { 'data-object': wall.id });
+    for (const end of ['', '2']) {
+      const handle = svg('circle', {
+        cx: wall['x' + end], cy: wall['y' + end], r: 7 / view.zoom,
+        fill: '#fff', stroke: '#e33138', 'stroke-width': 2, 'vector-effect': 'non-scaling-stroke',
+        cursor: 'grab', 'data-wall-end': end,
+      }, handles);
+      svg('title', {}, handle, 'Drag to resize wall');
+    }
+  }
 }
 
 function drawPlanObjects(parent, activeId, draft) {
@@ -403,8 +418,9 @@ function snap(point) {
   return { x: Math.round(point.x / 20) * 20, y: Math.round(point.y / 20) * 20 };
 }
 
-function wallEdges() {
-  return plan.objects.flatMap(({ type, x, y, x2, y2 }) => {
+function wallEdges(excludedId) {
+  return plan.objects.flatMap(({ id, type, x, y, x2, y2 }) => {
+    if (excludedId !== undefined && id === excludedId) return [];
     const start = { x, y };
     const end = { x: x2, y: y2 };
     if (type === 'wall') return [[start, end]];
@@ -518,8 +534,20 @@ canvas.addEventListener('pointerdown', event => {
   } else if (tool === 'select') {
     selected = event.target.closest('[data-object]')?.dataset.object;
     const object = current();
-    if (object) gesture = { mode: event.target.hasAttribute('data-aim') ? 'aim' : 'move',
-      point, screen, object, original: { ...object }, before: clone() };
+    if (object) {
+      const handle = event.target.closest('[data-wall-end]');
+      gesture = { mode: event.target.hasAttribute('data-aim') ? 'aim' : 'move',
+        point, screen, object, original: { ...object }, before: clone() };
+      if (object.type === 'wall' && handle) {
+        const end = handle.dataset.wallEnd;
+        const fixed = end === '' ? '2' : '';
+        Object.assign(gesture, {
+          mode: 'resize-wall', type: 'wall', end, freehand: event.shiftKey,
+          start: { x: object['x' + fixed], y: object['y' + fixed] },
+          edges: event.shiftKey ? [] : wallEdges(object.id),
+        });
+      }
+    }
     render();
   } else if (tool === 'camera') {
     addCamera(point);
@@ -540,6 +568,20 @@ canvas.addEventListener('pointerdown', event => {
   }
 });
 
+function resizeWall(action, screen, point) {
+  if (!action.changed && distance(screen, action.screen) < 3) return;
+  const x = 'x' + action.end;
+  const y = 'y' + action.end;
+  const end = drawEnd(action, {
+    x: action.original[x] + point.x - action.point.x,
+    y: action.original[y] + point.y - action.point.y,
+  });
+  if (distance(action.start, end) <= .001) return;
+  action.object[x] = end.x;
+  action.object[y] = end.y;
+  action.changed = end.x !== action.original[x] || end.y !== action.original[y];
+}
+
 canvas.addEventListener('pointermove', event => {
   if (gesture?.pointer !== event.pointerId) return;
   const screen = local(event);
@@ -554,6 +596,8 @@ canvas.addEventListener('pointermove', event => {
   if (action.mode === 'draw') {
     const end = drawEnd(action, point);
     action.draft = { ...action.start, x2: end.x, y2: end.y, type: action.type === 'scale' ? 'measure' : action.type };
+  } else if (action.mode === 'resize-wall') {
+    resizeWall(action, screen, point);
   } else {
     if (!action.changed && distance(screen, action.screen) < 3) return;
     if (action.mode === 'aim') {
@@ -576,6 +620,10 @@ canvas.addEventListener('pointerup', event => {
   if (gesture?.pointer !== event.pointerId) return;
   const action = gesture;
   gesture = undefined;
+  if (action.mode === 'resize-wall') {
+    const screen = local(event);
+    resizeWall(action, screen, world(screen));
+  }
   if (action.changed) return commit(action.before);
   if (action.mode === 'draw') {
     const end = drawEnd(action, world(local(event)));
