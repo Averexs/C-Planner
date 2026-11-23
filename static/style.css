@@ -35,7 +35,7 @@ nav{border-right:1px solid var(--divider)}
 aside{border-left:1px solid var(--divider)}
 h2{font-size:13px;margin:4px 0 12px;font-weight:750}
 nav h2:not(:first-child),aside h2:not(:first-child){margin-top:22px}
-nav button,#objects button,#projects button{display:block;width:100%;text-align:left;margin:0 0 5px}
+nav button,#projects button{display:block;width:100%;text-align:left;margin:0 0 5px}
 nav button{border-color:transparent}
 nav button span{display:inline-block;width:22px;color:var(--accent)}
 button.active{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
@@ -53,7 +53,6 @@ footer{border-top:1px solid var(--divider);justify-content:space-between;color:v
 #canvas:not([data-tool=pan]):not([data-tool=select]){cursor:crosshair}
 #properties label,#pdf-form label{display:grid;gap:4px;margin-bottom:9px;font-size:12px}
 #properties p{margin:0 0 10px}
-#objects button{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 dialog{background:var(--surface);border:1px solid var(--control-border);border-radius:12px;padding:22px;width:min(420px,90vw);color:inherit}
 dialog::backdrop{background:#23364c80}
 dialog h2{font-size:18px}

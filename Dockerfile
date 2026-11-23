@@ -4,8 +4,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends poppler-utils &
 WORKDIR /app
 COPY server.py .
 COPY static ./static
-ARG APP_VERSION=development
-ENV APP_VERSION=$APP_VERSION
 ENV PLANNER_DATA=/data
 USER planner
 EXPOSE 8080
