@@ -43,7 +43,7 @@ const tips = {
   window: 'Drag between the ends of the window along the wall.',
   label: 'Click to place a label.',
   measure: 'Drag between two points to add a dimension.',
-  scale: 'Turn off snapping, then drag along a known distance.',
+  scale: 'Drag along a known distance to calibrate the plan.',
   camera: 'Click to place a camera or drag one from the toolbar.',
 };
 const names = { wall: 'Wall', room: 'Room', door: 'Door', doorway: 'Doorway', window: 'Window', measure: 'Dimension', camera: 'Camera', label: 'Label' };
@@ -357,9 +357,7 @@ function button(label, action, parent) {
 
 function renderPanels() {
   const properties = $('properties');
-  const objects = $('objects');
   properties.replaceChildren();
-  objects.replaceChildren();
   const object = current();
   const note = document.createElement('p');
   const { pixelsPerUnit, unit } = plan.scale ?? defaultScale;
@@ -411,14 +409,7 @@ function renderPanels() {
       commit(before);
     }, properties);
   }
-  for (const item of plan.objects) {
-    const control = button(item.name, () => {
-      selected = item.id;
-      setTool('select');
-      render();
-    }, objects);
-    control.classList.toggle('active', item.id === selected);
-  }
+
   $('undo').disabled = !past.length;
   $('redo').disabled = !future.length;
 }
