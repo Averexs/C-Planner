@@ -8,6 +8,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+APP_VERSION = "0.16.0"
 STATIC = Path(__file__).with_name("static")
 DATA = Path(os.environ.get("PLANNER_DATA", "data"))
 DATA.mkdir(parents=True, exist_ok=True)
@@ -78,7 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         match = PROJECT.fullmatch(self.path)
         if self.command == "GET":
             if self.path == "/api/version":
-                return self.send_json({"version": os.environ.get("APP_VERSION", "development")})
+                return self.send_json({"version": APP_VERSION})
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
                      "/style.css": ("style.css", "text/css")}
             if self.path in files:
