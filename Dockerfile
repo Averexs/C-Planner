@@ -6,6 +6,5 @@ COPY static /opt/camera-planner/static/
 COPY start.py /opt/camera-planner/
 WORKDIR /config
 ENV PLANNER_DATA=/data
-USER planner
 EXPOSE 8080
-CMD ["python", "/opt/camera-planner/start.py"]
+CMD ["python", "-I", "/opt/camera-planner/start.py"]
