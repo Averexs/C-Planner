@@ -38,7 +38,7 @@
   <section class="workspace" aria-label="Drawing workspace">
     <div class="canvas-bar">
       <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Shift+Z">Redo</button>
-      <label><input type="checkbox" id="snap" checked> Snap to grid</label>
+      <label><input type="checkbox" id="snap"> Snap to grid</label>
       <label id="pdf-opacity-control" hidden>PDF opacity
         <input id="pdf-opacity" type="range" min="0" max="100" value="100">
         <span id="pdf-opacity-value">100%</span>
@@ -55,8 +55,6 @@
   <aside>
     <h2>Properties</h2>
     <div id="properties"></div>
-    <h2>Objects</h2>
-    <div id="objects"></div>
   </aside>
 </main>
 <dialog id="pdf-dialog">
