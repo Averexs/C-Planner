@@ -77,6 +77,8 @@ class Handler(BaseHTTPRequestHandler):
     def dispatch(self):
         match = PROJECT.fullmatch(self.path)
         if self.command == "GET":
+            if self.path == "/api/version":
+                return self.send_json({"version": os.environ.get("APP_VERSION", "development")})
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
                      "/style.css": ("style.css", "text/css")}
             if self.path in files:

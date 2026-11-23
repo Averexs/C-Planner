@@ -14,8 +14,8 @@
   <div class="project-actions">
     <button id="new">New</button><button id="open">Open</button>
     <button id="import">Import PDF</button><button id="save" class="primary">Save project</button>
-    <button id="export-pdf" type="button">Export PDF</button>
-    <button id="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
+    <button id="export" type="button" aria-haspopup="dialog">Export</button>
+    <button id="settings" type="button" aria-haspopup="dialog">Settings</button>
   </div>
 </header>
 <main>
@@ -72,6 +72,20 @@
 <dialog id="open-dialog">
   <h2>Open project</h2><div id="projects"></div>
   <div class="dialog-actions"><button data-close="open-dialog">Close</button></div>
+</dialog>
+<dialog id="settings-dialog" aria-labelledby="settings-title">
+  <h2 id="settings-title">Settings</h2>
+  <p>App version <strong id="app-version">Loading…</strong></p>
+  <button id="theme-toggle" type="button" aria-pressed="false">Dark mode</button>
+  <div class="dialog-actions"><button type="button" data-close="settings-dialog">Close</button></div>
+</dialog>
+<dialog id="export-dialog" aria-labelledby="export-title">
+  <h2 id="export-title">Export floor plan</h2>
+  <div class="dialog-actions">
+    <button id="export-pdf" type="button">PDF</button>
+    <button id="export-jpg" type="button">JPG</button>
+    <button type="button" data-close="export-dialog">Cancel</button>
+  </div>
 </dialog>
 <section id="print-plan" aria-label="Printable floor plan"></section>
 </body>

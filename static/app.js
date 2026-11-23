@@ -239,18 +239,25 @@ function drawPlanObjects(parent, activeId, draft) {
   if (draft) drawObject(draft, true, parent, openings, true);
 }
 
-function exportPdf() {
+function openExport() {
   if (gesture) return;
   const opacity = plan.background?.opacity ?? 100;
   if ((!plan.background || opacity === 0) && !plan.objects.length) {
     status('Add a floor plan before exporting.');
     return;
   }
+  $('export-dialog').showModal();
+}
+
+function renderExport(includeTitle) {
+  const opacity = plan.background?.opacity ?? 100;
   const printable = $('print-plan');
   printable.replaceChildren();
-  const title = document.createElement('h1');
-  title.textContent = plan.name;
-  printable.append(title);
+  if (includeTitle) {
+    const title = document.createElement('h1');
+    title.textContent = plan.name;
+    printable.append(title);
+  }
   const sheet = svg('svg', { role: 'img', 'aria-label': 'Floor plan and camera coverage' }, printable);
   const content = svg('g', {}, sheet);
   if (plan.background && opacity > 0) {
@@ -261,7 +268,59 @@ function exportPdf() {
   const { x, y, width, height } = content.getBBox();
   const margin = 16;
   sheet.setAttribute('viewBox', [x - margin, y - margin, width + margin * 2, height + margin * 2].join(' '));
+  return sheet;
+}
+
+function exportPdf() {
+  $('export-dialog').close();
+  renderExport(true);
   window.print();
+}
+
+async function exportJpg() {
+  $('export-dialog').close();
+  let url;
+  try {
+    const sheet = renderExport(false);
+    const bounds = sheet.viewBox.baseVal;
+    const scale = 3200 / Math.max(bounds.width, bounds.height);
+    const width = Math.max(1, Math.round(bounds.width * scale));
+    const height = Math.max(1, Math.round(bounds.height * scale));
+    sheet.setAttribute('width', width);
+    sheet.setAttribute('height', height);
+    for (const node of sheet.querySelectorAll('[fill], [stroke]')) {
+      for (const attr of ['fill', 'stroke']) {
+        const token = node.getAttribute(attr)?.match(/^var\((--[\w-]+)\)$/)?.[1];
+        if (token) node.setAttribute(attr, getComputedStyle(node).getPropertyValue(token).trim());
+      }
+    }
+    const source = new XMLSerializer().serializeToString(sheet);
+    const filename = plan.name.replace(/[^\p{L}\p{N} ._-]/gu, '_').trim() || 'floor-plan';
+    const image = new Image();
+    image.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+    $('print-plan').replaceChildren();
+    await image.decode();
+    const bitmap = document.createElement('canvas');
+    bitmap.width = width;
+    bitmap.height = height;
+    const context = bitmap.getContext('2d');
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0);
+    const blob = await new Promise(resolve => bitmap.toBlob(resolve, 'image/jpeg', .94));
+    if (!blob || blob.type !== 'image/jpeg') throw new Error('JPEG encoding failed.');
+    url = URL.createObjectURL(blob);
+    const download = document.createElement('a');
+    download.href = url;
+    download.download = filename + '.jpg';
+    download.click();
+    status('JPG exported');
+  } catch {
+    $('print-plan').replaceChildren();
+    status('Could not export the plan as JPG.');
+  } finally {
+    if (url) setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
 }
 
 function field(parent, label, value, change, bounds) {
@@ -850,7 +909,15 @@ $('pdf-opacity').addEventListener('change', event => {
   plan.background.opacity = opacity;
   commit(before);
 });
+$('export').onclick = openExport;
 $('export-pdf').onclick = exportPdf;
+$('export-jpg').onclick = exportJpg;
+$('settings').onclick = () => $('settings-dialog').showModal();
+request('/api/version').then(({ version }) => {
+  $('app-version').textContent = version;
+}).catch(() => {
+  $('app-version').textContent = 'Unavailable';
+});
 window.addEventListener('afterprint', () => $('print-plan').replaceChildren());
 $('zoom-in').onclick = () => zoom(1.25);
 $('zoom-out').onclick = () => zoom(.8);
