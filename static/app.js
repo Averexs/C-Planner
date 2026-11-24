@@ -28,13 +28,14 @@ themeToggle.addEventListener('click', () => {
 const defaultScale = { pixelsPerUnit: 20, unit: 'ft' };
 const fresh = () => ({ name: 'Untitled plan', objects: [], background: null, scale: null });
 let plan = fresh();
-let id, selected, gesture;
+let id, gesture;
+const selected = new Set();
 let tool = 'select';
 let view = { x: 28, y: 28, zoom: 1 };
 let past = [], future = [];
 let dirty = false, revision = 0;
 const tips = {
-  select: 'Drag a wall end to resize it. Drag objects to move them or the camera handle to aim.',
+  select: 'Shift-click to toggle objects. Drag on empty canvas to select an area.',
   pan: 'Drag to pan the drawing.',
   wall: 'Drag to trace a wall. Nearby joins and nearly straight strokes snap automatically.',
   room: 'Drag between opposite corners of the room.',
@@ -53,7 +54,7 @@ const radians = degrees => degrees * Math.PI / 180;
 const direction = (a, b) => (Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI + 360) % 360;
 const polar = (x, y, range, angle) => [x + range * Math.cos(radians(angle)), y + range * Math.sin(radians(angle))];
 const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
-const current = () => plan.objects.find(object => object.id === selected);
+const current = () => selected.size === 1 ? plan.objects.find(object => selected.has(object.id)) : undefined;
 const status = message => { $('status').textContent = message; };
 const clone = () => structuredClone(plan);
 
@@ -125,7 +126,7 @@ function drawWall(x, y, x2, y2, color, width, group, openings) {
   if (cursor < length) segment(cursor, length);
 }
 
-function drawObject(object, active, parent, openings = [], preview = false) {
+function drawObject(object, active, parent, openings = [], preview = false, showHandles = active) {
   const { type, x, y, x2, y2 } = object;
   const color = type === 'wall' || type === 'room'
     ? (active ? '#ff4752' : '#e33138')
@@ -135,10 +136,11 @@ function drawObject(object, active, parent, openings = [], preview = false) {
     const body = svg('g', { transform: `translate(${x} ${y}) rotate(${object.angle})` }, group);
     svg('rect', { x: -10, y: -7, width: 17, height: 14, rx: 3, fill: color, stroke: '#fff' }, body);
     svg('path', { d: 'M6 -4 L13 -7 V7 L6 4 Z', fill: color, stroke: '#fff' }, body);
-    if (active) {
+    if (showHandles) {
+      const handles = svg('g', { 'data-object': object.id, 'data-selection-handles': '' }, parent);
       const [cx, cy] = polar(x, y, Math.max(24, object.range), object.angle);
-      svg('line', { x1: x, y1: y, x2: cx, y2: cy, stroke: color, 'stroke-dasharray': '5 4', 'pointer-events': 'none' }, group);
-      svg('circle', { cx, cy, r: 7, fill: '#fff', stroke: color, 'stroke-width': 2, 'data-aim': '' }, group);
+      svg('line', { x1: x, y1: y, x2: cx, y2: cy, stroke: color, 'stroke-dasharray': '5 4', 'pointer-events': 'none' }, handles);
+      svg('circle', { cx, cy, r: 7, fill: '#fff', stroke: color, 'stroke-width': 2, 'data-aim': '' }, handles);
     }
     svg('text', { x: x + 13, y: y - 12, fill: color, 'font-size': 13 }, group, object.name);
   } else if (type === 'label') {
@@ -169,9 +171,10 @@ function drawObject(object, active, parent, openings = [], preview = false) {
     const path = `M ${x} ${y} L ${openX} ${openY} A ${radius} ${radius} 0 0 ${object.reverseSwing ? 1 : 0} ${x2} ${y2}`;
     svg('path', { d: path, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }, group);
     svg('path', { d: path, fill: 'none', stroke: color, 'stroke-width': 2 }, group);
-    if (active && !preview) {
+    if (showHandles && !preview) {
+      const handles = svg('g', { 'data-object': object.id, 'data-selection-handles': '' }, parent);
       const dot = svg('circle', { cx: openX, cy: openY, r: 8 / view.zoom, fill: '#fff', stroke: color,
-        'stroke-width': 2, 'vector-effect': 'non-scaling-stroke', cursor: 'pointer', 'data-door-swing': '' }, group);
+        'stroke-width': 2, 'vector-effect': 'non-scaling-stroke', cursor: 'pointer', 'data-door-swing': '' }, handles);
       svg('title', {}, dot, 'Flip door swing');
     }
   } else {
@@ -207,9 +210,13 @@ function renderDrawing() {
   updatePdfOpacity(opacity);
   drawing.replaceChildren();
   drawPlanObjects(drawing, selected, gesture?.draft);
+  if (gesture?.mode === 'marquee' && gesture.end) {
+    svg('rect', { ...selectionBox(gesture.point, gesture.end), fill: '#3898ff', 'fill-opacity': .16,
+      stroke: '#3898ff', 'vector-effect': 'non-scaling-stroke', 'pointer-events': 'none' });
+  }
   const wall = current();
   if (wall?.type === 'wall') {
-    const handles = svg('g', { 'data-object': wall.id });
+    const handles = svg('g', { 'data-object': wall.id, 'data-selection-handles': '' });
     for (const end of ['', '2']) {
       const handle = svg('circle', {
         cx: wall['x' + end], cy: wall['y' + end], r: 7 / view.zoom,
@@ -221,21 +228,21 @@ function renderDrawing() {
   }
 }
 
-function drawPlanObjects(parent, activeId, draft) {
+function drawPlanObjects(parent, selection = new Set(), draft) {
   for (const object of plan.objects) {
-    if (object.type === 'camera') cone(object, parent, object.id === activeId);
+    if (object.type === 'camera') cone(object, parent, selection.has(object.id));
   }
   const openings = plan.objects.filter(object => isOpening(object.type));
   const wallOpenings = draft && isOpening(draft.type) ? [...openings, draft] : openings;
   for (const object of plan.objects) {
-    if (object.type !== 'camera' && !isOpening(object.type)) drawObject(object, object.id === activeId, parent, wallOpenings);
+    if (object.type !== 'camera' && !isOpening(object.type)) drawObject(object, selection.has(object.id), parent, wallOpenings, false, selection.size === 1 && selection.has(object.id));
   }
-  for (const object of openings) drawObject(object, object.id === activeId, parent);
+  for (const object of openings) drawObject(object, selection.has(object.id), parent, [], false,
+    selection.size === 1 && selection.has(object.id));
   for (const object of plan.objects) {
-    if (object.type === 'camera' && object.id !== activeId) drawObject(object, false, parent);
+    if (object.type === 'camera') drawObject(object, selection.has(object.id), parent, [], false,
+      selection.size === 1 && selection.has(object.id));
   }
-  const activeCamera = plan.objects.find(object => object.type === 'camera' && object.id === activeId);
-  if (activeCamera) drawObject(activeCamera, true, parent);
   if (draft) drawObject(draft, true, parent, openings, true);
 }
 
@@ -372,7 +379,8 @@ function renderPanels() {
   const object = current();
   const note = document.createElement('p');
   const { pixelsPerUnit, unit } = plan.scale ?? defaultScale;
-  note.textContent = object ? names[object.type] : 'Select an object to edit it.';
+  note.textContent = selected.size > 1 ? `${selected.size} objects selected`
+    : object ? names[object.type] : 'Select an object to edit it.';
   properties.append(note);
   if (!plan.scale) {
     const scaleNote = document.createElement('p');
@@ -413,6 +421,8 @@ function renderPanels() {
         reverseSwing: !object.reverseSwing }), properties);
     }
     button('Delete object', removeSelected, properties);
+  } else if (selected.size > 1) {
+    button('Delete selected objects', removeSelected, properties);
   } else if (plan.background) {
     button('Remove PDF background', () => {
       const before = clone();
@@ -449,7 +459,8 @@ function history(from, to) {
   to.push(clone());
   plan = from.pop();
   $('name').value = plan.name;
-  if (!current()) selected = undefined;
+  const survivingIds = new Set(plan.objects.map(object => object.id));
+  for (const id of selected) if (!survivingIds.has(id)) selected.delete(id);
   markDirty();
   render();
 }
@@ -559,7 +570,8 @@ function add(type, point, details = {}) {
   const object = { id: globalThis.crypto.randomUUID?.() ?? Array.from(crypto.getRandomValues(new Uint32Array(4)), n => n.toString(16).padStart(8, '0')).join(''),
     type, name: `${names[type]} ${count + 1}`, ...point, ...details };
   plan.objects.push(object);
-  selected = object.id;
+  selected.clear();
+  selected.add(object.id);
   commit(before);
 }
 
@@ -574,11 +586,29 @@ function flipDoorSwing(door) {
 }
 
 function removeSelected() {
-  if (!current() || gesture) return;
+  if (!selected.size || gesture) return;
   const before = clone();
-  plan.objects = plan.objects.filter(object => object.id !== selected);
-  selected = undefined;
+  plan.objects = plan.objects.filter(object => !selected.has(object.id));
+  selected.clear();
   commit(before);
+}
+
+function selectionBox(start, end) {
+  return { x: Math.min(start.x, end.x), y: Math.min(start.y, end.y),
+    width: Math.abs(start.x - end.x), height: Math.abs(start.y - end.y) };
+}
+
+function selectArea(action, end) {
+  const box = selectionBox(action.point, end);
+  if (!action.additive) selected.clear();
+  for (const node of drawing.querySelectorAll('[data-object]')) {
+    if (node.hasAttribute('data-selection-handles') || !node.childElementCount) continue;
+    const bounds = node.getBBox();
+    if (bounds.x <= box.x + box.width && bounds.x + bounds.width >= box.x &&
+        bounds.y <= box.y + box.height && bounds.y + bounds.height >= box.y) {
+      selected.add(node.dataset.object);
+    }
+  }
 }
 
 canvas.addEventListener('pointerdown', event => {
@@ -593,12 +623,29 @@ canvas.addEventListener('pointerdown', event => {
   if (event.button === 1 || tool === 'pan') {
     gesture = { mode: 'pan', screen, view: { ...view } };
   } else if (tool === 'select') {
-    selected = event.target.closest('[data-object]')?.dataset.object;
-    const object = current();
+    const hit = event.target.closest('[data-object]')?.dataset.object;
+    const object = plan.objects.find(item => item.id === hit);
+    const handleTarget = event.target.closest('[data-wall-end], [data-aim]');
+    if (!object) {
+      gesture = { mode: 'marquee', point, screen, additive: event.shiftKey };
+    } else if (event.shiftKey && !handleTarget) {
+      if (selected.has(hit)) selected.delete(hit);
+      else selected.add(hit);
+      render();
+      return;
+    } else if (!selected.has(hit)) {
+      selected.clear();
+      selected.add(hit);
+    }
     if (object) {
       const handle = event.target.closest('[data-wall-end]');
       gesture = { mode: event.target.hasAttribute('data-aim') ? 'aim' : 'move',
         point, screen, object, original: { ...object }, before: clone() };
+      if (gesture.mode === 'move') {
+        gesture.collapse = hit;
+        gesture.members = plan.objects.filter(item => selected.has(item.id))
+          .map(item => ({ item, original: { ...item } }));
+      }
       if (object.type === 'wall' && handle) {
         const end = handle.dataset.wallEnd;
         const fixed = end === '' ? '2' : '';
@@ -654,7 +701,9 @@ canvas.addEventListener('pointermove', event => {
     updateView();
     return;
   }
-  if (action.mode === 'draw') {
+  if (action.mode === 'marquee') {
+    action.end = point;
+  } else if (action.mode === 'draw') {
     const end = drawEnd(action, point);
     action.draft = { ...action.start, x2: end.x, y2: end.y, type: action.type === 'scale' ? 'measure' : action.type };
   } else if (action.mode === 'resize-wall') {
@@ -666,10 +715,15 @@ canvas.addEventListener('pointermove', event => {
     } else {
       const original = action.original;
       const target = snap({ x: original.x + point.x - action.point.x, y: original.y + point.y - action.point.y });
-      Object.assign(action.object, target);
-      if (original.x2 !== undefined) {
-        action.object.x2 = original.x2 + target.x - original.x;
-        action.object.y2 = original.y2 + target.y - original.y;
+      const dx = target.x - original.x;
+      const dy = target.y - original.y;
+      for (const { item, original: start } of action.members) {
+        item.x = start.x + dx;
+        item.y = start.y + dy;
+        if (start.x2 !== undefined) {
+          item.x2 = start.x2 + dx;
+          item.y2 = start.y2 + dy;
+        }
       }
     }
     action.changed = true;
@@ -686,6 +740,14 @@ canvas.addEventListener('pointerup', event => {
     resizeWall(action, screen, world(screen));
   }
   if (action.changed) return commit(action.before);
+  if (action.mode === 'marquee') {
+    const screen = local(event);
+    if (distance(screen, action.screen) >= 3) selectArea(action, world(screen));
+    else if (!action.additive) selected.clear();
+  } else if (action.mode === 'move') {
+    selected.clear();
+    selected.add(action.collapse);
+  }
   if (action.mode === 'draw') {
     const end = drawEnd(action, world(local(event)));
     const pixels = distance(action.start, end);
@@ -789,7 +851,7 @@ async function request(path, options) {
 function reset(project, projectId) {
   plan = project;
   id = projectId;
-  selected = undefined;
+  selected.clear();
   past = [];
   future = [];
   dirty = false;
@@ -1000,7 +1062,7 @@ window.addEventListener('keydown', event => {
   }
   if (key === 'escape') {
     cancelGesture();
-    selected = undefined;
+    selected.clear();
     setTool('select');
     render();
   }
