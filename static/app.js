@@ -1123,6 +1123,17 @@ for (const control of document.querySelectorAll('[data-close]')) {
 $('undo').onclick = () => history(past, future);
 $('redo').onclick = () => history(future, past);
 $('fit').onclick = fit;
+$('toggle-tools').onclick = () => {
+  const tools = $('drawing-tools');
+  tools.hidden = !tools.hidden;
+  document.querySelector('main').classList.toggle('tools-collapsed', tools.hidden);
+  const toggle = $('toggle-tools');
+  const label = tools.hidden ? 'Show drawing tools' : 'Hide drawing tools';
+  toggle.textContent = tools.hidden ? '›' : '‹';
+  toggle.title = label;
+  toggle.setAttribute('aria-label', label);
+  toggle.setAttribute('aria-expanded', String(!tools.hidden));
+};
 $('remove-background').onclick = () => {
   if (!plan.background || gesture) return;
   const before = clone();

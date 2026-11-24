@@ -19,7 +19,9 @@
   </div>
 </header>
 <main>
-  <nav aria-label="Drawing tools">
+  <div class="tools-panel">
+    <button id="toggle-tools" type="button" aria-controls="drawing-tools" aria-expanded="true" aria-label="Hide drawing tools" title="Hide drawing tools">‹</button>
+  <nav id="drawing-tools" aria-label="Drawing tools">
     <h2>Tools</h2>
     <button data-tool="select" title="V"><span>↖</span> Select</button>
     <button data-tool="pan" title="H"><span>✥</span> Pan</button>
@@ -35,6 +37,7 @@
     <button data-tool="camera" id="camera-tool" draggable="true" title="C"><span>▣</span> Camera</button>
     <small>Select Camera, then tap or click the plan</small>
   </nav>
+  </div>
   <section class="workspace" aria-label="Drawing workspace">
     <div class="canvas-bar">
       <button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Shift+Z">Redo</button>
