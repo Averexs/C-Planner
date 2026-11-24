@@ -33,7 +33,7 @@
     <button data-tool="scale"><span>⌖</span> Set scale</button>
     <h2>Equipment</h2>
     <button data-tool="camera" id="camera-tool" draggable="true" title="C"><span>▣</span> Camera</button>
-    <small>Drag onto plan or click to place</small>
+    <small>Select Camera, then tap or click the plan</small>
   </nav>
   <section class="workspace" aria-label="Drawing workspace">
     <div class="canvas-bar">
@@ -43,6 +43,8 @@
         <input id="pdf-opacity" type="range" min="0" max="100" value="100">
         <span id="pdf-opacity-value">100%</span>
       </label>
+      <button id="add-selection" type="button" aria-pressed="false">Multi-select</button>
+      <button id="properties-toggle" type="button" aria-controls="properties-panel" aria-expanded="false">Properties</button>
       <div class="spacer"></div>
       <button id="zoom-out" aria-label="Zoom out">−</button><output id="zoom"></output><button id="zoom-in" aria-label="Zoom in">+</button><button id="fit">Fit</button>
     </div>
@@ -52,7 +54,7 @@
     </svg>
     <footer><span id="hint"></span><span id="status" role="status"></span></footer>
   </section>
-  <aside>
+  <aside id="properties-panel">
     <h2>Properties</h2>
     <div id="properties"></div>
   </aside>
