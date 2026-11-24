@@ -29,12 +29,16 @@ button.primary:hover:not(:disabled){background:var(--primary-hover)}
 input:not([type=checkbox]),select{border:1px solid var(--control-border);border-radius:6px;padding:7px 8px;min-width:0;background:var(--surface)}
 input[type=checkbox]{accent-color:var(--accent)}
 #name{width:185px}
-main{flex:1;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr)}
-@media(min-width:901px){main.has-selection{grid-template-columns:148px minmax(0,1fr) 245px}}
+main{--tools-width:148px;flex:1;min-height:0;display:grid;grid-template-columns:var(--tools-width) minmax(0,1fr)}
+@media(min-width:901px){main.has-selection{grid-template-columns:var(--tools-width) minmax(0,1fr) 245px}}
 body.expanded-editor{position:fixed;inset:0;height:100dvh;overflow:hidden}
 body.expanded-editor > header{display:none}
 nav,aside{padding:14px 12px;overflow:auto;background:var(--surface)}
-nav{border-right:1px solid var(--divider)}
+main.tools-collapsed{--tools-width:48px}
+.tools-panel{min-width:0;min-height:0;display:flex;flex-direction:column;border-right:1px solid var(--divider)}
+#toggle-tools{align-self:flex-start;min-width:36px;margin:4px;font-size:18px;line-height:1}
+#drawing-tools[hidden]{display:none}
+@media(max-width:560px){.tools-panel{border-right:0;border-bottom:1px solid var(--divider)}}
 aside{border-left:1px solid var(--divider)}
 h2{font-size:13px;margin:4px 0 12px;font-weight:750}
 nav h2:not(:first-child),aside h2:not(:first-child){margin-top:22px}
@@ -74,16 +78,18 @@ dialog h2{font-size:18px}
   #drawing [data-object] [stroke=transparent]{stroke-width:22;vector-effect:non-scaling-stroke}
 }
 @media (max-width:900px){
-  main{position:relative;grid-template-columns:125px minmax(0,1fr)}
+  main{position:relative;--tools-width:125px}
   #properties-panel{position:absolute;right:8px;bottom:44px;z-index:2;width:min(280px,85%);max-height:65%;
     border:1px solid var(--control-border);border-radius:10px;box-shadow:0 6px 24px #0003;padding:14px}
 }
-@media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr)}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
+@media(max-width:800px){main{--tools-width:105px}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
 @media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid var(--divider)}}
 
 @media (max-width:900px) and (any-pointer:coarse){
   main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
-  nav{display:flex;gap:5px;overflow-x:auto;overscroll-behavior-x:contain;border-right:0;border-bottom:1px solid var(--divider)}
+  .tools-panel{flex-direction:row;border-right:0;border-bottom:1px solid var(--divider)}
+  #toggle-tools{flex:none}
+  nav{min-width:0;display:flex;gap:5px;overflow-x:auto;overscroll-behavior-x:contain}
   nav h2,nav small{display:none}
   nav button{width:auto;flex:none;margin:0;white-space:nowrap}
 }
