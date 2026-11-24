@@ -29,7 +29,10 @@ button.primary:hover:not(:disabled){background:var(--primary-hover)}
 input:not([type=checkbox]),select{border:1px solid var(--control-border);border-radius:6px;padding:7px 8px;min-width:0;background:var(--surface)}
 input[type=checkbox]{accent-color:var(--accent)}
 #name{width:185px}
-main{flex:1;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr) 245px}
+main{flex:1;min-height:0;display:grid;grid-template-columns:148px minmax(0,1fr)}
+@media(min-width:901px){main.has-selection{grid-template-columns:148px minmax(0,1fr) 245px}}
+body.expanded-editor{position:fixed;inset:0;height:100dvh;overflow:hidden}
+body.expanded-editor > header{display:none}
 nav,aside{padding:14px 12px;overflow:auto;background:var(--surface)}
 nav{border-right:1px solid var(--divider)}
 aside{border-left:1px solid var(--divider)}
@@ -60,7 +63,7 @@ dialog h2{font-size:18px}
 #projects{max-height:55vh;overflow:auto}
 .project-row{display:flex;gap:8px;margin-bottom:5px}
 .project-row button:first-child{flex:1;min-width:0;text-align:left;overflow-wrap:anywhere}
-#properties-toggle,#add-selection{display:none}
+#add-selection{display:none}
 #add-selection[aria-pressed=true]{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
 @media (any-pointer:coarse){
   button{min-height:44px;min-width:44px;touch-action:manipulation}
@@ -72,10 +75,8 @@ dialog h2{font-size:18px}
 }
 @media (max-width:900px){
   main{position:relative;grid-template-columns:125px minmax(0,1fr)}
-  #properties-toggle{display:inline-block}
   #properties-panel{position:absolute;right:8px;bottom:44px;z-index:2;width:min(280px,85%);max-height:65%;
     border:1px solid var(--control-border);border-radius:10px;box-shadow:0 6px 24px #0003;padding:14px}
-  #properties-panel:not(.panel-open){display:none}
 }
 @media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr)}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
 @media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid var(--divider)}}
@@ -86,6 +87,7 @@ dialog h2{font-size:18px}
   nav h2,nav small{display:none}
   nav button{width:auto;flex:none;margin:0;white-space:nowrap}
 }
+@media(max-width:560px){body.expanded-editor main{grid-template-rows:auto minmax(0,1fr)}}
 #print-plan{
   position:fixed;left:-10000px;top:0;visibility:hidden;
   --drawing-ink:#263f5b;--drawing-accent:#087c76;
