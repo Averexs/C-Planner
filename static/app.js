@@ -29,6 +29,9 @@ const defaultScale = { pixelsPerUnit: 20, unit: 'ft' };
 const fresh = () => ({ name: 'Untitled plan', objects: [], background: null, scale: null });
 let plan = fresh();
 let id, gesture;
+const touches = new Map();
+let pinch;
+let suppressTouch = false;
 const selected = new Set();
 let tool = 'select';
 let view = { x: 28, y: 28, zoom: 1 };
@@ -45,7 +48,7 @@ const tips = {
   label: 'Click to place a label.',
   measure: 'Drag between two points to add a dimension.',
   scale: 'Drag along a known distance to calibrate the plan.',
-  camera: 'Click to place a camera or drag one from the toolbar.',
+  camera: 'Tap or click the plan to place a camera.',
 };
 const names = { wall: 'Wall', room: 'Room', door: 'Door', doorway: 'Doorway', window: 'Window', measure: 'Dimension', camera: 'Camera', label: 'Label' };
 const isOpening = type => ['door', 'doorway', 'window'].includes(type);
@@ -67,16 +70,16 @@ function svg(tag, attributes, parent = drawing, content) {
 }
 
 function updateView() {
+  const touch = matchMedia('(any-pointer: coarse)').matches;
+  for (const handle of drawing.querySelectorAll('[data-door-swing], [data-wall-end], [data-aim]')) {
+    handle.setAttribute('r', touch ? 13 / view.zoom : handle.hasAttribute('data-aim') ? 7 : 8 / view.zoom);
+  }
   $('world').setAttribute('transform', `translate(${view.x} ${view.y}) scale(${view.zoom})`);
   const grid = $('grid-area');
   grid.setAttribute('x', -view.x / view.zoom);
   grid.setAttribute('y', -view.y / view.zoom);
   grid.setAttribute('width', canvas.clientWidth / view.zoom);
   grid.setAttribute('height', canvas.clientHeight / view.zoom);
-  drawing.querySelector('[data-door-swing]')?.setAttribute('r', 8 / view.zoom);
-  for (const handle of drawing.querySelectorAll('[data-wall-end]')) {
-    handle.setAttribute('r', 7 / view.zoom);
-  }
   $('zoom').textContent = Math.round(view.zoom * 100) + '%';
 }
 
@@ -238,6 +241,7 @@ function renderDrawing() {
       svg('title', {}, handle, 'Drag to resize wall');
     }
   }
+  if (matchMedia('(any-pointer: coarse)').matches) updateView();
 }
 
 function drawPlanObjects(parent, selection = new Set(), draft) {
@@ -623,11 +627,56 @@ function selectArea(action, end) {
   }
 }
 
+function touchPair() {
+  const [a, b] = touches.values();
+  return { center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, span: distance(a, b) };
+}
+
+function startTouch(event) {
+  touches.set(event.pointerId, local(event));
+  canvas.setPointerCapture(event.pointerId);
+  if (touches.size === 2) {
+    cancelGesture();
+    const { center, span } = touchPair();
+    pinch = { anchor: world(center), span: Math.max(1, span), zoom: view.zoom };
+    suppressTouch = true;
+  }
+  return suppressTouch;
+}
+
+function updatePinch(event) {
+  if (!touches.has(event.pointerId)) return false;
+  touches.set(event.pointerId, local(event));
+  if (pinch && touches.size >= 2) {
+    const { center, span } = touchPair();
+    view.zoom = clamp(pinch.zoom * span / pinch.span, .025, 12);
+    view.x = center.x - pinch.anchor.x * view.zoom;
+    view.y = center.y - pinch.anchor.y * view.zoom;
+    updateView();
+  }
+  return suppressTouch;
+}
+
+function endTouch(event) {
+  if (!touches.delete(event.pointerId)) return false;
+  const suppressed = suppressTouch;
+  if (touches.size < 2) pinch = undefined;
+  if (!touches.size) suppressTouch = false;
+  return suppressed;
+}
+
+function placeLabel(point) {
+  const name = prompt('Label text');
+  if (name?.trim()) add('label', snap(point), { name: name.trim().slice(0, 100) });
+}
+
 canvas.addEventListener('pointerdown', event => {
+  if (event.pointerType === 'touch' && startTouch(event)) return;
   if (gesture || ![0, 1].includes(event.button)) return;
   event.preventDefault();
   const screen = local(event);
   const point = world(screen);
+  const additive = event.shiftKey || $('add-selection').getAttribute('aria-pressed') === 'true';
   if (event.button === 0 && event.target.closest('[data-door-swing]')) {
     const door = current();
     if (door?.type === 'door') return flipDoorSwing(door);
@@ -639,8 +688,8 @@ canvas.addEventListener('pointerdown', event => {
     const object = plan.objects.find(item => item.id === hit);
     const handleTarget = event.target.closest('[data-wall-end], [data-aim]');
     if (!object) {
-      gesture = { mode: 'marquee', point, screen, additive: event.shiftKey };
-    } else if (event.shiftKey && !handleTarget) {
+      gesture = { mode: 'marquee', point, screen, additive };
+    } else if (additive && !handleTarget) {
       if (selected.has(hit)) selected.delete(hit);
       else selected.add(hit);
       render();
@@ -669,11 +718,11 @@ canvas.addEventListener('pointerdown', event => {
       }
     }
     render();
-  } else if (tool === 'camera') {
-    addCamera(point);
-  } else if (tool === 'label') {
-    const name = prompt('Label text');
-    if (name?.trim()) add('label', snap(point), { name: name.trim().slice(0, 100) });
+  } else if (tool === 'camera' || tool === 'label') {
+    if (event.pointerType === 'touch') {
+      gesture = { mode: 'place', type: tool, point, screen };
+    } else if (tool === 'camera') addCamera(point);
+    else placeLabel(point);
   } else {
     const opening = isOpening(tool);
     const freehand = event.shiftKey && (opening || tool === 'wall');
@@ -703,10 +752,12 @@ function resizeWall(action, screen, point) {
 }
 
 canvas.addEventListener('pointermove', event => {
+  if (updatePinch(event)) return;
   if (gesture?.pointer !== event.pointerId) return;
   const screen = local(event);
   const point = world(screen);
   const action = gesture;
+  if (action.mode === 'place') return;
   if (action.mode === 'pan') {
     view.x = action.view.x + screen.x - action.screen.x;
     view.y = action.view.y + screen.y - action.screen.y;
@@ -744,9 +795,17 @@ canvas.addEventListener('pointermove', event => {
 });
 
 canvas.addEventListener('pointerup', event => {
+  if (endTouch(event)) return;
   if (gesture?.pointer !== event.pointerId) return;
   const action = gesture;
   gesture = undefined;
+  if (action.mode === 'place') {
+    if (distance(action.screen, local(event)) < 10) {
+      if (action.type === 'camera') addCamera(action.point);
+      else placeLabel(action.point);
+    }
+    return;
+  }
   if (action.mode === 'resize-wall') {
     const screen = local(event);
     resizeWall(action, screen, world(screen));
@@ -788,8 +847,12 @@ function cancelGesture() {
   gesture = undefined;
   render();
 }
-canvas.addEventListener('pointercancel', cancelGesture);
-canvas.addEventListener('lostpointercapture', cancelGesture);
+for (const type of ['pointercancel', 'lostpointercapture']) {
+  canvas.addEventListener(type, event => {
+    endTouch(event);
+    if (gesture?.pointer === event.pointerId) cancelGesture();
+  });
+}
 
 $('camera-tool').addEventListener('dragstart', event => {
   event.dataTransfer.setData('application/x-planner-camera', 'camera');
@@ -1063,6 +1126,16 @@ for (const control of document.querySelectorAll('[data-close]')) {
 $('undo').onclick = () => history(past, future);
 $('redo').onclick = () => history(future, past);
 $('fit').onclick = fit;
+$('properties-toggle').onclick = () => {
+  const open = $('properties-panel').classList.toggle('panel-open');
+  $('properties-toggle').setAttribute('aria-expanded', String(open));
+};
+$('add-selection').onclick = event => {
+  const control = event.currentTarget;
+  const enabled = control.getAttribute('aria-pressed') !== 'true';
+  control.setAttribute('aria-pressed', String(enabled));
+  if (enabled) setTool('select');
+};
 $('pdf-opacity').addEventListener('input', event => updatePdfOpacity(event.target.valueAsNumber));
 $('pdf-opacity').addEventListener('change', event => {
   const opacity = event.target.valueAsNumber;
