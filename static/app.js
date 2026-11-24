@@ -242,11 +242,22 @@ function drawPlanObjects(parent, activeId, draft) {
 function openExport() {
   if (gesture) return;
   const opacity = plan.background?.opacity ?? 100;
-  if ((!plan.background || opacity === 0) && !plan.objects.length) {
-    status('Add a floor plan before exporting.');
-    return;
-  }
+  const empty = (!plan.background || opacity === 0) && !plan.objects.length;
+  $('export-pdf').disabled = empty;
+  $('export-jpg').disabled = empty;
   $('export-dialog').showModal();
+}
+
+function exportJson() {
+  const blob = new Blob([JSON.stringify(plan, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = (plan.name.replace(/[^\p{L}\p{N} ._-]/gu, '_').trim() || 'floor-plan') + '.json';
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  $('export-dialog').close();
+  status('Project JSON exported');
 }
 
 function renderExport(includeTitle) {
@@ -790,6 +801,41 @@ function reset(project, projectId) {
   status(projectId ? 'Project opened' : 'New project');
 }
 
+function parseProject(source) {
+  const project = JSON.parse(source);
+  if (!project || typeof project.name !== 'string' || !Array.isArray(project.objects)) {
+    throw new Error('Choose a Camera Planner project JSON file.');
+  }
+  const ids = new Set();
+  for (const object of project.objects) {
+    if (!object || !Object.hasOwn(names, object.type) || typeof object.id !== 'string' ||
+        !object.id || ids.has(object.id) || typeof object.name !== 'string') {
+      throw new Error('The file contains an invalid drawing object.');
+    }
+    const fields = ['x', 'y'];
+    if (object.type === 'camera') fields.push('angle', 'range', 'fov');
+    else if (object.type !== 'label') fields.push('x2', 'y2');
+    if (!fields.every(key => Number.isFinite(object[key])) ||
+        (object.type === 'camera' && (object.range <= 0 || object.fov < 1 || object.fov > 359))) {
+      throw new Error('The file contains invalid drawing dimensions.');
+    }
+    ids.add(object.id);
+  }
+  const { background, scale } = project;
+  if (background != null && (typeof background.image !== 'string' ||
+      !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(background.image) ||
+      ![background.width, background.height].every(value => Number.isFinite(value) && value > 0) ||
+      (background.opacity !== undefined && (!Number.isFinite(background.opacity) ||
+        background.opacity < 0 || background.opacity > 100)))) {
+    throw new Error('The file contains an invalid PDF background.');
+  }
+  if (scale != null && (!Number.isFinite(scale.pixelsPerUnit) || scale.pixelsPerUnit <= 0 ||
+      !['ft', 'm', 'in', 'cm'].includes(scale.unit))) {
+    throw new Error('The file contains an invalid measurement scale.');
+  }
+  return project;
+}
+
 const confirmSwitch = () => !dirty || confirm('Discard unsaved changes to this project?');
 
 $('name').addEventListener('change', () => {
@@ -829,6 +875,7 @@ $('new').onclick = () => {
 $('open').onclick = async () => {
   if ($('save').disabled) return;
   const list = $('projects');
+  $('project-json-status').textContent = '';
   list.textContent = 'Loading…';
   $('open-dialog').showModal();
   try {
@@ -850,6 +897,28 @@ $('open').onclick = async () => {
     list.textContent = error.message;
   }
 };
+
+$('import-json').onclick = () => $('project-json-file').click();
+$('project-json-file').addEventListener('change', async event => {
+  const file = event.target.files[0];
+  event.target.value = '';
+  if (!file) return;
+  $('project-json-status').textContent = '';
+  const opening = revision;
+  try {
+    if (file.size > 40 * 1024 * 1024) throw new Error('Project JSON is larger than 40 MiB.');
+    const imported = parseProject(await file.text());
+    if (!$('open-dialog').open || revision !== opening || !confirmSwitch()) return;
+    reset(imported);
+    markDirty();
+    $('open-dialog').close();
+    status('Project imported · Save project to keep a copy on this server');
+  } catch (error) {
+    if ($('open-dialog').open && revision === opening) {
+      $('project-json-status').textContent = 'Import failed: ' + error.message;
+    }
+  }
+});
 
 $('import').onclick = () => $('pdf-dialog').showModal();
 $('pdf-form').addEventListener('submit', async event => {
@@ -903,6 +972,7 @@ $('pdf-opacity').addEventListener('change', event => {
 $('export').onclick = openExport;
 $('export-pdf').onclick = exportPdf;
 $('export-jpg').onclick = exportJpg;
+$('export-json').onclick = exportJson;
 $('settings').onclick = () => $('settings-dialog').showModal();
 request('/api/version').then(({ version }) => {
   $('app-version').textContent = version;
