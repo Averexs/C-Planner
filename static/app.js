@@ -210,6 +210,18 @@ function renderDrawing() {
   updatePdfOpacity(opacity);
   drawing.replaceChildren();
   drawPlanObjects(drawing, selected, gesture?.draft);
+  if (selected.size) {
+    for (const node of drawing.querySelectorAll('[data-object]:not([data-selection-handles])')) {
+      if (!selected.has(node.dataset.object) || !node.childElementCount) continue;
+      const { x, y, width, height } = node.getBBox();
+      const padding = 5 / view.zoom;
+      const outline = { x: x - padding, y: y - padding, width: width + padding * 2,
+        height: height + padding * 2, fill: 'none', 'vector-effect': 'non-scaling-stroke',
+        'pointer-events': 'none' };
+      svg('rect', { ...outline, stroke: '#fff', 'stroke-width': 4 });
+      svg('rect', { ...outline, stroke: '#165dcc', 'stroke-width': 2, 'stroke-dasharray': '6 3' });
+    }
+  }
   if (gesture?.mode === 'marquee' && gesture.end) {
     svg('rect', { ...selectionBox(gesture.point, gesture.end), fill: '#3898ff', 'fill-opacity': .16,
       stroke: '#3898ff', 'vector-effect': 'non-scaling-stroke', 'pointer-events': 'none' });
@@ -943,18 +955,46 @@ $('open').onclick = async () => {
   try {
     const projects = await request('/api/projects');
     list.textContent = projects.length ? '' : 'No saved projects yet.';
-    for (const project of projects) button(project.name, async () => {
-      if (!confirmSwitch()) return;
-      const opening = revision;
-      try {
-        const loaded = await request('/api/projects/' + project.id);
-        if (!$('open-dialog').open || revision !== opening) return;
-        reset(loaded, project.id);
-        $('open-dialog').close();
-      } catch (error) {
-        list.textContent = error.message;
-      }
-    }, list);
+    for (const project of projects) {
+      const row = document.createElement('div');
+      row.className = 'project-row';
+      list.append(row);
+      const open = button(project.name, async () => {
+        if (!confirmSwitch()) return;
+        const opening = revision;
+        try {
+          const loaded = await request('/api/projects/' + project.id);
+          if (!$('open-dialog').open || revision !== opening || !row.isConnected) return;
+          reset(loaded, project.id);
+          $('open-dialog').close();
+        } catch (error) {
+          $('project-json-status').textContent = error.message;
+        }
+      }, row);
+      const remove = button('Delete', async () => {
+        if (!confirm(`Delete the saved project “${project.name}”? This cannot be undone.`)) return;
+        $('project-json-status').textContent = '';
+        open.disabled = remove.disabled = true;
+        try {
+          await request('/api/projects/' + project.id, { method: 'DELETE' });
+          if (id === project.id) {
+            id = undefined;
+            markDirty();
+            status('Saved copy deleted · Save project to keep the open drawing');
+          }
+          if (row.isConnected) {
+            row.remove();
+            if (!list.childElementCount) list.textContent = 'No saved projects yet.';
+            $('project-json-status').textContent = 'Project deleted.';
+          }
+        } catch (error) {
+          $('project-json-status').textContent = 'Delete failed: ' + error.message;
+        } finally {
+          open.disabled = remove.disabled = false;
+        }
+      }, row);
+      remove.setAttribute('aria-label', 'Delete ' + project.name);
+    }
   } catch (error) {
     list.textContent = error.message;
   }

@@ -35,7 +35,7 @@ nav{border-right:1px solid var(--divider)}
 aside{border-left:1px solid var(--divider)}
 h2{font-size:13px;margin:4px 0 12px;font-weight:750}
 nav h2:not(:first-child),aside h2:not(:first-child){margin-top:22px}
-nav button,#projects button{display:block;width:100%;text-align:left;margin:0 0 5px}
+nav button{display:block;width:100%;text-align:left;margin:0 0 5px}
 nav button{border-color:transparent}
 nav button span{display:inline-block;width:22px;color:var(--accent)}
 button.active{background:var(--selected);border-color:var(--selected-border);color:var(--selected-text)}
@@ -58,6 +58,8 @@ dialog::backdrop{background:#23364c80}
 dialog h2{font-size:18px}
 .dialog-actions{justify-content:flex-end;margin-top:12px}
 #projects{max-height:55vh;overflow:auto}
+.project-row{display:flex;gap:8px;margin-bottom:5px}
+.project-row button:first-child{flex:1;min-width:0;text-align:left;overflow-wrap:anywhere}
 @media(max-width:800px){main{grid-template-columns:105px minmax(0,1fr) 170px}nav,aside{padding:8px 5px}header{gap:8px;padding:8px}.project-actions{margin-left:0}}
 @media(max-width:560px){body{height:auto;min-height:100dvh;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 62dvh auto}nav{display:flex;flex-wrap:wrap;gap:3px}nav h2,nav small{display:none}nav button{width:auto;margin:0}aside{border-top:1px solid var(--divider)}}
 

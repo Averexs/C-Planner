@@ -7,14 +7,16 @@ import tempfile
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Lock
 
-APP_VERSION = "0.18.0"
+APP_VERSION = "0.19.0"
 STATIC = Path(__file__).with_name("static")
 DATA = Path(os.environ.get("PLANNER_DATA", "data"))
 DATA.mkdir(parents=True, exist_ok=True)
 PROJECT = re.compile(r"/api/projects/([0-9a-f]{32})")
 PDF_LIMIT = 25 * 1024 * 1024
 PROJECT_LIMIT = 32 * 1024 * 1024
+PROJECT_LOCK = Lock()
 
 
 class RequestError(Exception):
@@ -87,14 +89,29 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_data((STATIC / filename).read_bytes(), mime + "; charset=utf-8")
             if self.path == "/api/projects":
                 projects = []
-                for path in sorted(DATA.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
-                    project = json.loads(path.read_bytes())
-                    projects.append({"id": path.stem, "name": project["name"]})
+                with PROJECT_LOCK:
+                    for path in sorted(DATA.glob("*.json"), key=lambda item: item.stat().st_mtime, reverse=True):
+                        project = json.loads(path.read_bytes())
+                        projects.append({"id": path.stem, "name": project["name"]})
                 return self.send_json(projects)
             if match:
                 path = DATA / (match[1] + ".json")
-                if path.is_file():
-                    return self.send_data(path.read_bytes(), "application/json")
+                try:
+                    raw = path.read_bytes()
+                except FileNotFoundError:
+                    raise RequestError(404, "Project not found.")
+                return self.send_data(raw, "application/json")
+        if self.command == "DELETE" and match:
+            path = DATA / (match[1] + ".json")
+            try:
+                with PROJECT_LOCK:
+                    path.unlink()
+            except FileNotFoundError:
+                raise RequestError(404, "Project not found.")
+            except OSError as error:
+                self.log_error("Cannot delete project in %s: %s", DATA, error)
+                raise RequestError(500, "The server could not delete the project. Check the Docker logs.") from error
+            return self.send_json({"id": match[1]})
         if self.command == "POST" and self.path.startswith("/api/pdf/"):
             try:
                 page = int(self.path.removeprefix("/api/pdf/"))
@@ -111,17 +128,18 @@ class Handler(BaseHTTPRequestHandler):
                 raise RequestError(400, "A project needs a name and an object list.")
             project_id = match[1] if match else uuid.uuid4().hex
             path = DATA / (project_id + ".json")
-            if match and not path.is_file():
-                raise RequestError(404, "Project not found.")
             try:
-                with tempfile.NamedTemporaryFile(dir=DATA, delete=False) as target:
-                    temporary = Path(target.name)
-                    try:
-                        target.write(raw)
-                        target.close()
-                        temporary.replace(path)
-                    finally:
-                        temporary.unlink(missing_ok=True)
+                with PROJECT_LOCK:
+                    if match and not path.is_file():
+                        raise RequestError(404, "Project not found.")
+                    with tempfile.NamedTemporaryFile(dir=DATA, delete=False) as target:
+                        temporary = Path(target.name)
+                        try:
+                            target.write(raw)
+                            target.close()
+                            temporary.replace(path)
+                        finally:
+                            temporary.unlink(missing_ok=True)
             except OSError as error:
                 self.log_error("Cannot save project in %s: %s", DATA, error)
                 raise RequestError(500, "The server could not write to its plans storage. Check the Docker logs.") from error
@@ -136,7 +154,7 @@ class Handler(BaseHTTPRequestHandler):
         except (BrokenPipeError, ConnectionResetError):
             pass
 
-    do_GET = do_POST = do_PUT = handle_request
+    do_GET = do_POST = do_PUT = do_DELETE = handle_request
 
 
 if __name__ == "__main__":
