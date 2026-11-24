@@ -8,7 +8,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-APP_VERSION = "0.17.0"
+APP_VERSION = "0.18.0"
 STATIC = Path(__file__).with_name("static")
 DATA = Path(os.environ.get("PLANNER_DATA", "data"))
 DATA.mkdir(parents=True, exist_ok=True)
