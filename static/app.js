@@ -209,6 +209,7 @@ function renderDrawing() {
   } else background?.remove();
   const opacity = plan.background?.opacity ?? 100;
   $('pdf-opacity-control').hidden = !plan.background;
+  $('remove-background').hidden = !plan.background;
   $('pdf-opacity').value = opacity;
   updatePdfOpacity(opacity);
   drawing.replaceChildren();
@@ -393,6 +394,8 @@ function renderPanels() {
   const properties = $('properties');
   properties.replaceChildren();
   const object = current();
+  $('properties-panel').hidden = selected.size === 0;
+  document.querySelector('main').classList.toggle('has-selection', selected.size > 0);
   const note = document.createElement('p');
   const { pixelsPerUnit, unit } = plan.scale ?? defaultScale;
   note.textContent = selected.size > 1 ? `${selected.size} objects selected`
@@ -439,12 +442,6 @@ function renderPanels() {
     button('Delete object', removeSelected, properties);
   } else if (selected.size > 1) {
     button('Delete selected objects', removeSelected, properties);
-  } else if (plan.background) {
-    button('Remove PDF background', () => {
-      const before = clone();
-      plan.background = null;
-      commit(before);
-    }, properties);
   }
 
   $('undo').disabled = !past.length;
@@ -1126,10 +1123,34 @@ for (const control of document.querySelectorAll('[data-close]')) {
 $('undo').onclick = () => history(past, future);
 $('redo').onclick = () => history(future, past);
 $('fit').onclick = fit;
-$('properties-toggle').onclick = () => {
-  const open = $('properties-panel').classList.toggle('panel-open');
-  $('properties-toggle').setAttribute('aria-expanded', String(open));
+$('remove-background').onclick = () => {
+  if (!plan.background || gesture) return;
+  const before = clone();
+  plan.background = null;
+  commit(before);
 };
+
+function updateFullscreen() {
+  const active = Boolean(document.fullscreenElement) || document.body.classList.contains('expanded-editor');
+  $('fullscreen').textContent = active ? 'Exit full screen' : 'Full screen';
+  $('fullscreen').setAttribute('aria-pressed', String(active));
+}
+
+$('fullscreen').onclick = async () => {
+  if (document.fullscreenElement) {
+    await document.exitFullscreen();
+  } else if (document.body.classList.contains('expanded-editor')) {
+    document.body.classList.remove('expanded-editor');
+  } else {
+    try {
+      await document.documentElement.requestFullscreen();
+    } catch {
+      document.body.classList.add('expanded-editor');
+    }
+  }
+  updateFullscreen();
+};
+document.addEventListener('fullscreenchange', updateFullscreen);
 $('add-selection').onclick = event => {
   const control = event.currentTarget;
   const enabled = control.getAttribute('aria-pressed') !== 'true';
@@ -1172,6 +1193,11 @@ window.addEventListener('keydown', event => {
   if (key === 'delete' || key === 'backspace') {
     event.preventDefault();
     removeSelected();
+  }
+  if (key === 'escape' && document.body.classList.contains('expanded-editor')) {
+    document.body.classList.remove('expanded-editor');
+    updateFullscreen();
+    return;
   }
   if (key === 'escape') {
     cancelGesture();
