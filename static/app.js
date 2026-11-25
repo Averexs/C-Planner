@@ -1126,6 +1126,10 @@ $('fit').onclick = fit;
 $('toggle-tools').onclick = () => {
   const tools = $('drawing-tools');
   tools.hidden = !tools.hidden;
+  if (tools.hidden) {
+    cancelGesture();
+    setTool('pan');
+  }
   document.querySelector('main').classList.toggle('tools-collapsed', tools.hidden);
   const toggle = $('toggle-tools');
   const label = tools.hidden ? 'Show drawing tools' : 'Hide drawing tools';
