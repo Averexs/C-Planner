@@ -9,7 +9,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Lock
 
-APP_VERSION = "0.22.0"
+APP_VERSION = "0.23.0"
 STATIC = Path(__file__).with_name("static")
 DATA = Path(os.environ.get("PLANNER_DATA", "data"))
 DATA.mkdir(parents=True, exist_ok=True)
